@@ -1,32 +1,36 @@
 package com.example.wifty.ui.screens
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import com.github.skydoves.colorpicker.compose.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddFolderScreen() {
 
     var title by remember { mutableStateOf("") }
     var tag by remember { mutableStateOf("") }
 
+    var showColorPicker by remember { mutableStateOf(false) }
+    var selectedColor by remember { mutableStateOf(Color(0xFF4B63FF)) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-        horizontalAlignment = Alignment.Start
     ) {
         Text(
-            text = "Swift Notes",
+            "Swift Notes",
             style = MaterialTheme.typography.headlineSmall.copy(
                 fontWeight = FontWeight.Bold
             )
@@ -38,8 +42,8 @@ fun AddFolderScreen() {
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
-            placeholder = { Text("Enter title here...") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Enter title here…") }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -48,50 +52,72 @@ fun AddFolderScreen() {
         OutlinedTextField(
             value = tag,
             onValueChange = { tag = it },
-            placeholder = { Text("Add tag here...") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Add tag here…") }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Text("Choose Color")
+
         Spacer(modifier = Modifier.height(16.dp))
 
-// List of sample colors
-        val colors = listOf(
-            MaterialTheme.colorScheme.primary,
-            MaterialTheme.colorScheme.secondary,
-            MaterialTheme.colorScheme.tertiary,
-            MaterialTheme.colorScheme.error,
-            MaterialTheme.colorScheme.surfaceVariant
+        // --- COLOR BOX THAT OPENS PICKER ---
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .background(selectedColor, RoundedCornerShape(8.dp))
+                .border(2.dp, Color.Black, RoundedCornerShape(8.dp))
+                .clickable { showColorPicker = true }
         )
 
-        var selectedColor by remember { mutableStateOf(colors[0]) }
+        if (showColorPicker) {
+            AlertDialog(
+                onDismissRequest = { showColorPicker = false },
+                confirmButton = {
+                    TextButton(onClick = { showColorPicker = false }) {
+                        Text("Done")
+                    }
+                },
+                title = { Text("Pick a Color") },
+                text = {
+                    val controller = rememberColorPickerController()
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            colors.forEach { color ->
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .padding(4.dp)
-                        .then(
-                            if (selectedColor == color)
-                                Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                            else Modifier
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                        HsvColorPicker(
+                            modifier = Modifier
+                                .size(250.dp)
+                                .padding(8.dp),
+                            controller = controller,
+                            onColorChanged = { envelope ->
+                                selectedColor = envelope.color
+                            }
                         )
-                        .background(color, CircleShape)
-                        .clickable { selectedColor = color }
-                )
-            }
+
+                        AlphaSlider(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            controller = controller
+                        )
+
+                        BrightnessSlider(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            controller = controller
+                        )
+                    }
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(40.dp))
 
         Button(
-            onClick = { /* use title and tag here */ },
+            onClick = { /* Save folder */ },
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
             Text("Create")
