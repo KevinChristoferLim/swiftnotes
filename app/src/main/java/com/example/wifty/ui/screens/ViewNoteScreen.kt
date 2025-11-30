@@ -1,5 +1,9 @@
 package com.example.wifty.ui.screens
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import android.net.Uri
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -11,10 +15,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +33,9 @@ import androidx.compose.ui.unit.sp
 import com.example.wifty.model.Note
 import com.example.wifty.model.ChecklistItem
 import com.example.wifty.viewmodel.NotesViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.ui.input.key.*
 import java.nio.charset.StandardCharsets
 import java.util.regex.Pattern
@@ -37,6 +43,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.window.Dialog
+import java.util.*
 
 // Marker format: [[CHECKLIST:BASE64_TEXT:0_or_1]]
 private val CHECKLIST_REGEX = Pattern.compile("\\[\\[CHECKLIST:([A-Za-z0-9+/=]+):(0|1)]]")
@@ -45,6 +53,13 @@ private sealed class Block {
     data class Text(var text: String) : Block()
     data class Checklist(var text: String, var checked: Boolean) : Block()
 }
+
+data class ReminderData(
+    val dateMillis: Long? = null,           // date portion (midnight local) or null
+    val timeMillis: Long? = null,           // time portion in millis (time-of-day) or absolute timestamp (we store as absolute)
+    val repeat: List<String> = emptyList(), // e.g. ["Everyday"] or ["Monday","Wednesday"]
+    val location: String? = null
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,18 +89,27 @@ fun ViewNoteScreen(
     val coroutineScope = rememberCoroutineScope()
     var autosaveJob by remember { mutableStateOf<Job?>(null) }
 
+    // New states: lock, pin, reminder dialog
+    var isLocked by rememberSaveable { mutableStateOf(false) }
+    var isPinned by rememberSaveable { mutableStateOf(false) }
+    var showReminderDialog by remember { mutableStateOf(false) }
+
     // Image picker
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { note?.let { n -> viewModel.attachImageToNote(n.id, it) } }
+        uri?.let {
+            if (!isLocked) note?.let { n -> viewModel.attachImageToNote(n.id, it) }
+        }
     }
 
     // File picker
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { note?.let { n -> viewModel.attachFileToNote(n.id, it) } }
+        uri?.let {
+            if (!isLocked) note?.let { n -> viewModel.attachFileToNote(n.id, it) }
+        }
     }
 
     // Helpers: Marker encoding
@@ -144,7 +168,6 @@ fun ViewNoteScreen(
         return sb.toString()
     }
 
-
     // Normalize blocks BEFORE saving:
     // ensure no Text block contains checklist markers; split them into proper blocks
     fun normalizeBlocksForSave(inputBlocks: List<Block>): List<Block> {
@@ -160,9 +183,6 @@ fun ViewNoteScreen(
                     val start = matcher.start()
                     if (start > lastEnd) {
                         out.add(Block.Text(text.substring(lastEnd, start)))
-                    } else if (start == lastEnd) {
-                        // if there's zero-length text before marker, still may want to add nothing
-                        // (avoid adding empty text blocks unless necessary)
                     }
                     val b64 = matcher.group(1) ?: ""
                     val checked = matcher.group(2) == "1"
@@ -188,7 +208,7 @@ fun ViewNoteScreen(
 
         return out
     }
-    
+
     // Sync blockFieldValues length with blocks
     fun syncFieldValuesFromBlocks(currentBlocks: List<Block>) {
         val newFieldVals = currentBlocks.map { b ->
@@ -247,6 +267,8 @@ fun ViewNoteScreen(
     //  - If current line is empty, replace that current line with a checklist and add an empty text line below
     //  - If current line has text, insert checklist line directly below current line and add an empty text line under it
     fun insertChecklistAtCursor() {
+        if (isLocked) return // editing disabled while locked
+
         // guard
         if (blocks.isEmpty()) {
             blocks = listOf(Block.Checklist("", false), Block.Text(""))
@@ -346,8 +368,33 @@ fun ViewNoteScreen(
                     }
                 },
                 actions = {
+                    // Lock toggle
+                    IconButton(onClick = { isLocked = !isLocked }) {
+                        Icon(
+                            imageVector = if (isLocked) Icons.Default.Lock else Icons.Default.Lock,
+                            contentDescription = if (isLocked) "Unlock note" else "Lock note"
+                        )
+                    }
+
+                    // Pin toggle (UI only; persist later)
+                    IconButton(onClick = {
+                        isPinned = !isPinned
+                        // TODO: persist pin state via viewModel.updateNote(...) if Note has a pinned field
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Pin note",
+                            tint = if (isPinned) Color.Yellow else LocalContentColor.current
+                        )
+                    }
+
+                    // Reminder
+                    IconButton(onClick = { showReminderDialog = true }) {
+                        Icon(Icons.Default.Notifications, contentDescription = "Add reminder")
+                    }
+
+                    // Done button (immediate save)
                     TextButton(onClick = {
-                        // commit any outstanding edits into blocks first
                         commitBlocksToModelAndSave() // immediate on Done
                         onClose()
                     }) {
@@ -357,6 +404,19 @@ fun ViewNoteScreen(
             )
         }
     ) { innerPadding ->
+
+        // Reminder dialog (overlaid)
+        if (showReminderDialog) {
+            ReminderDialog(
+                onDismiss = { showReminderDialog = false },
+                onSave = { reminder ->
+                    // You get the fully-populated ReminderData here.
+                    // Persist/schedule as you like. For now we just close.
+                    // Example: viewModel.saveReminderForNote(noteId, reminder)  <-- implement in your app
+                    showReminderDialog = false
+                }
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -377,9 +437,11 @@ fun ViewNoteScreen(
                 BasicTextField(
                     value = title,
                     onValueChange = {
-                        title = it
-                        // Title change should also be autosaved (debounced)
-                        scheduleAutosave()
+                        if (!isLocked) {
+                            title = it
+                            // Title change should also be autosaved (debounced)
+                            scheduleAutosave()
+                        }
                     },
                     textStyle = TextStyle(
                         fontSize = 28.sp,
@@ -411,22 +473,24 @@ fun ViewNoteScreen(
                             BasicTextField(
                                 value = tfv,
                                 onValueChange = { newTfV ->
-                                    // update UI state
-                                    val updatedVals = blockFieldValues.toMutableList()
-                                    if (index < updatedVals.size) updatedVals[index] = newTfV else updatedVals.add(newTfV)
-                                    blockFieldValues = updatedVals
+                                    if (!isLocked) {
+                                        // update UI state
+                                        val updatedVals = blockFieldValues.toMutableList()
+                                        if (index < updatedVals.size) updatedVals[index] = newTfV else updatedVals.add(newTfV)
+                                        blockFieldValues = updatedVals
 
-                                    // update underlying block text
-                                    val newBlocks = blocks.toMutableList()
-                                    newBlocks[index] = Block.Text(newTfV.text)
-                                    blocks = newBlocks
+                                        // update underlying block text
+                                        val newBlocks = blocks.toMutableList()
+                                        newBlocks[index] = Block.Text(newTfV.text)
+                                        blocks = newBlocks
 
-                                    // track focus
-                                    focusedBlockIndex = index
-                                    focusedCursorOffset = newTfV.selection.start
+                                        // track focus
+                                        focusedBlockIndex = index
+                                        focusedCursorOffset = newTfV.selection.start
 
-                                    // debounced autosave
-                                    scheduleAutosave()
+                                        // debounced autosave
+                                        scheduleAutosave()
+                                    }
                                 },
                                 textStyle = TextStyle(fontSize = 18.sp, color = Color.Black),
                                 modifier = Modifier
@@ -459,36 +523,42 @@ fun ViewNoteScreen(
                                 Checkbox(
                                     checked = block.checked,
                                     onCheckedChange = { checked ->
-                                        val newBlocks = blocks.toMutableList()
-                                        newBlocks[index] = Block.Checklist(block.text, checked)
-                                        blocks = newBlocks
-                                        syncFieldValuesFromBlocks(blocks)
-                                        // debounced autosave (per Option A: debounce all inputs)
-                                        scheduleAutosave()
+                                        if (!isLocked) {
+                                            val newBlocks = blocks.toMutableList()
+                                            newBlocks[index] = Block.Checklist(block.text, checked)
+                                            blocks = newBlocks
+                                            syncFieldValuesFromBlocks(blocks)
+                                            // debounced autosave (per Option A: debounce all inputs)
+                                            scheduleAutosave()
+                                        }
                                     }
                                 )
 
                                 BasicTextField(
                                     value = tfv,
                                     onValueChange = { newTfV ->
-                                        val updatedVals = blockFieldValues.toMutableList()
-                                        if (index < updatedVals.size) updatedVals[index] = newTfV else updatedVals.add(newTfV)
-                                        blockFieldValues = updatedVals
+                                        if (!isLocked) {
+                                            val updatedVals = blockFieldValues.toMutableList()
+                                            if (index < updatedVals.size) updatedVals[index] = newTfV else updatedVals.add(newTfV)
+                                            blockFieldValues = updatedVals
 
-                                        val newBlocks = blocks.toMutableList()
-                                        newBlocks[index] = Block.Checklist(newTfV.text, block.checked)
-                                        blocks = newBlocks
+                                            val newBlocks = blocks.toMutableList()
+                                            newBlocks[index] = Block.Checklist(newTfV.text, block.checked)
+                                            blocks = newBlocks
 
-                                        focusedBlockIndex = index
-                                        focusedCursorOffset = newTfV.selection.start
+                                            focusedBlockIndex = index
+                                            focusedCursorOffset = newTfV.selection.start
 
-                                        // debounced autosave
-                                        scheduleAutosave()
+                                            // debounced autosave
+                                            scheduleAutosave()
+                                        }
                                     },
                                     textStyle = TextStyle(fontSize = 18.sp, color = Color.Black),
                                     modifier = Modifier
                                         .weight(1f)
                                         .onKeyEvent { event ->
+                                            if (isLocked) return@onKeyEvent true // swallow keys while locked
+
                                             // BACKSPACE on empty checklist -> delete checklist and merge per Option A
                                             if (event.key == Key.Backspace && event.type == KeyEventType.KeyUp && tfv.text.isEmpty()) {
                                                 val newBlocks = blocks.toMutableList()
@@ -603,7 +673,9 @@ fun ViewNoteScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
 
-                    IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                    IconButton(onClick = {
+                        if (!isLocked) imagePickerLauncher.launch("image/*")
+                    }) {
                         Icon(Icons.Outlined.Info, contentDescription = null, tint = Color.White)
                     }
 
@@ -614,7 +686,9 @@ fun ViewNoteScreen(
                         Icon(Icons.Default.List, contentDescription = null, tint = Color.White)
                     }
 
-                    IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
+                    IconButton(onClick = {
+                        if (!isLocked) filePickerLauncher.launch("*/*")
+                    }) {
                         Icon(
                             Icons.Default.AccountBox,
                             contentDescription = null,
@@ -686,6 +760,256 @@ fun ViewNoteScreen(
                                 Text("Collaborator")
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* -------------------------
+   Reminder UI (full Version B: 3-step time flow + place tab)
+   ------------------------- */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ReminderDialog(
+    onDismiss: () -> Unit,
+    onSave: (ReminderData) -> Unit
+) {
+    val ctx = LocalContext.current
+
+    var tab by remember { mutableStateOf(0) }
+
+    var step by remember { mutableStateOf(0) }
+    var selectedDate by remember { mutableStateOf<Long?>(null) }
+
+    val timeState = rememberTimePickerState()
+
+    var repeatChoices by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    var placeText by remember { mutableStateOf("") }
+
+    fun showDatePicker(onPicked: (Int, Int, Int) -> Unit) {
+        val c = Calendar.getInstance()
+        DatePickerDialog(
+            ctx,
+            { _, y, m, d -> onPicked(y, m, d) },
+            c.get(Calendar.YEAR),
+            c.get(Calendar.MONTH),
+            c.get(Calendar.DAY_OF_MONTH)
+        ).show()
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .width(340.dp)
+            ) {
+
+                Text("Add reminder", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(12.dp))
+
+                TabRow(selectedTabIndex = tab) {
+                    Tab(tab == 0, { tab = 0 }) { Text("Time") }
+                    Tab(tab == 1, { tab = 1 }) { Text("Place") }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // ----------------------------
+                // TIME TAB (3 STEPS)
+                // ----------------------------
+                if (tab == 0) {
+
+                    Text("Step ${step + 1} of 3", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(8.dp))
+
+                    when (step) {
+
+                        // STEP 1 — PICK DATE
+                        0 -> {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+
+                                    Text("Choose date", style = MaterialTheme.typography.titleSmall)
+                                    Spacer(Modifier.height(8.dp))
+
+                                    Text(
+                                        selectedDate?.let { Date(it).toString() } ?: "No date selected"
+                                    )
+
+                                    Spacer(Modifier.height(12.dp))
+
+                                    Button(onClick = {
+                                        showDatePicker { y, m, d ->
+                                            val cal = Calendar.getInstance()
+                                            cal.set(y, m, d, 0, 0)
+                                            selectedDate = cal.timeInMillis
+                                        }
+                                    }) {
+                                        Text("Pick date")
+                                    }
+
+                                    if (selectedDate != null) {
+                                        TextButton(onClick = { selectedDate = null }) {
+                                            Text("Clear")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // STEP 2 — PICK TIME
+                        1 -> {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text("Choose time", style = MaterialTheme.typography.titleSmall)
+                                    Spacer(Modifier.height(8.dp))
+
+                                    TimePicker(state = timeState)
+                                }
+                            }
+                        }
+
+                        // STEP 3 — REPEAT OPTIONS
+                        2 -> {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+
+                                    Text("Repeat options", style = MaterialTheme.typography.titleSmall)
+                                    Spacer(Modifier.height(12.dp))
+
+                                    var selected by remember { mutableStateOf(repeatChoices.toMutableSet()) }
+
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+
+                                        // Everyday
+                                        FilterChip(
+                                            selected = "Everyday" in selected,
+                                            onClick = {
+                                                selected.clear()
+                                                selected.add("Everyday")
+                                                repeatChoices = selected.toList()
+                                            },
+                                            label = { Text("Everyday") }
+                                        )
+
+                                        val days = listOf(
+                                            "Monday", "Tuesday", "Wednesday",
+                                            "Thursday", "Friday", "Saturday", "Sunday"
+                                        )
+
+                                        days.forEach { day ->
+                                            FilterChip(
+                                                selected = day in selected,
+                                                onClick = {
+                                                    if (day in selected) selected.remove(day)
+                                                    else selected.add(day)
+
+                                                    selected.remove("Everyday")
+                                                    repeatChoices = selected.toList()
+                                                },
+                                                label = { Text(day.take(3)) }
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(Modifier.height(12.dp))
+                                    Text("Selected: ${repeatChoices.ifEmpty { listOf("None") }.joinToString()}")
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+
+                        if (step > 0) {
+                            OutlinedButton(onClick = { step-- }) { Text("Back") }
+                        } else Spacer(modifier = Modifier.width(1.dp))
+
+                        if (step < 2) {
+                            Button(onClick = { step++ }) { Text("Next") }
+                        }
+                    }
+                }
+
+                // ----------------------------
+                // PLACE TAB
+                // ----------------------------
+                if (tab == 1) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("Place", style = MaterialTheme.typography.titleSmall)
+                            Spacer(Modifier.height(8.dp))
+
+                            OutlinedTextField(
+                                value = placeText,
+                                onValueChange = { placeText = it },
+                                label = { Text("Location name or address") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // ----------------------------
+                // SAVE
+                // ----------------------------
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(Modifier.width(8.dp))
+
+                    Button(onClick = {
+                        val cal = Calendar.getInstance()
+
+                        if (selectedDate != null) cal.timeInMillis = selectedDate!!
+
+                        cal.set(Calendar.HOUR_OF_DAY, timeState.hour)
+                        cal.set(Calendar.MINUTE, timeState.minute)
+                        cal.set(Calendar.SECOND, 0)
+
+                        onSave(
+                            ReminderData(
+                                dateMillis = selectedDate,
+                                timeMillis = cal.timeInMillis,
+                                repeat = repeatChoices,
+                                location = placeText.ifBlank { null }
+                            )
+                        )
+                    }) {
+                        Text("Save")
                     }
                 }
             }
