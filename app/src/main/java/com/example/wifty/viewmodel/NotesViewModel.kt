@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
+import android.net.Uri
 
 /**
  * NotesViewModel holds list of notes and provides create/update/delete operations.
@@ -62,10 +63,6 @@ class NotesViewModel(
         }
     }
 
-    fun insertNote(note: Note) = viewModelScope.launch {
-        repo.insert(note)
-    }
-
     fun copyNote(note: Note) {
         viewModelScope.launch {
             val newNote = note.copy(
@@ -76,6 +73,18 @@ class NotesViewModel(
             repo.insert(newNote)
             refreshNotes()
         }
+    }
+
+    fun attachImageToNote(noteId: String, uri: Uri) {
+        val note = _notes.value.find { it.id == noteId } ?: return
+        val updatedContent = note.content + "\n[Image Attached: $uri]" // placeholder
+        updateNote(note.copy(content = updatedContent))
+    }
+
+    fun attachFileToNote(noteId: String, uri: Uri) {
+        val note = _notes.value.find { it.id == noteId } ?: return
+        val updatedContent = note.content + "\n[File Attached: $uri]" // placeholder
+        updateNote(note.copy(content = updatedContent))
     }
 
 

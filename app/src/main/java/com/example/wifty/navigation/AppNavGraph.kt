@@ -12,9 +12,21 @@ fun AppNavGraph(navController: NavHostController, notesVM: NotesViewModel) {
 
     NavHost(
         navController = navController,
-        startDestination = Routes.NotesList.route
+        startDestination = Routes.CoverView.route // Changed start destination
     ) {
 
+        // ---- Cover Screen ----
+        composable(Routes.CoverView.route) {
+            CoverViewScreen(
+                onContinue = {
+                    navController.navigate(Routes.NotesList.route) {
+                        popUpTo(Routes.CoverView.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // ---- Notes List ----
         composable(Routes.NotesList.route) {
             NotesListScreen(
                 viewModel = notesVM,
@@ -27,6 +39,7 @@ fun AppNavGraph(navController: NavHostController, notesVM: NotesViewModel) {
             )
         }
 
+        // ---- Create Note ----
         composable(Routes.CreateNote.route) {
             CreateNoteScreen(
                 viewModel = notesVM,
@@ -38,9 +51,9 @@ fun AppNavGraph(navController: NavHostController, notesVM: NotesViewModel) {
             )
         }
 
+        // ---- View Note ----
         composable(Routes.ViewNote.route) { backStack ->
             val id = backStack.arguments?.getString("noteId") ?: ""
-
             ViewNoteScreen(
                 noteId = id,
                 viewModel = notesVM,

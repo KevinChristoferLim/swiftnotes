@@ -22,6 +22,12 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.foundation.BorderStroke
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import android.net.Uri
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +46,34 @@ fun ViewNoteScreen(
         mutableStateOf(TextFieldValue(""))
     }
     var colorLong by remember { mutableStateOf(0xFF4B63FFu.toLong()) }
+
+    val context = LocalContext.current
+
+    // launch the system image picker
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            // Handle the selected image URI here
+            // For example, call a ViewModel function to attach the image
+            note?.let { n ->
+                viewModel.attachImageToNote(n.id, it)
+            }
+        }
+    }
+
+    //launch the system file picker
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            // Handle the selected file URI
+            note?.let { n ->
+                viewModel.attachFileToNote(n.id, it)
+            }
+        }
+    }
+
 
     // --- Load Note ---
     LaunchedEffect(noteId) {
@@ -204,16 +238,34 @@ fun ViewNoteScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
 
-                    IconButton(onClick = { /* camera later */ }) {
-                        Icon(Icons.Outlined.Info , contentDescription = null, tint = Color.White)
+                    IconButton(onClick = {
+                        imagePickerLauncher.launch("image/*")
+                    }) {
+                        Icon(Icons.Outlined.Info, contentDescription = "Attach Image", tint = Color.White)
                     }
 
-                    IconButton(onClick = { /* checklist */ }) {
-                        Icon(Icons.Filled.List, contentDescription = null, tint = Color.White)
+
+                    IconButton(onClick = {
+                        note?.let { n ->
+                            // Append a new checklist item
+                            val updatedContent = n.content + "\n- [ ] "
+                            val updatedNote = n.copy(content = updatedContent)
+
+                            // Update the note in the ViewModel
+                            viewModel.updateNote(updatedNote)
+
+                            // Update local state so the UI updates immediately
+                            content = TextFieldValue(updatedContent)
+                        }
+                    }) {
+                        Icon(Icons.Filled.List, contentDescription = "Add Checklist", tint = Color.White)
                     }
 
-                    IconButton(onClick = { /* attachment */ }) {
-                        Icon(Icons.Filled.AccountBox, contentDescription = null, tint = Color.White)
+
+                    IconButton(onClick = {
+                        filePickerLauncher.launch("*/*")  // Allow all types of files
+                    }) {
+                        Icon(Icons.Filled.AccountBox, contentDescription = "Attach File", tint = Color.White)
                     }
 
                     IconButton(onClick = { showMoreMenu = !showMoreMenu }) {
@@ -290,26 +342,79 @@ fun ViewNoteScreen(
 
             // ---------- DELETE CONFIRMATION ----------
             if (showDeleteDialog) {
-                AlertDialog(
-                    onDismissRequest = { showDeleteDialog = false },
-                    title = { Text("Delete this note?") },
-                    text = { Text("This action cannot be undone.") },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            note?.let {
-                                viewModel.deleteNote(it.id)
-                                onClose()
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF2F2F2), shape = RoundedCornerShape(16.dp)) // light gray
+                            .padding(24.dp)
+                    ) {
+
+                        // TITLE
+                        Text(
+                            text = "Are you sure you want to delete this note?",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // SUBTEXT
+                        Text(
+                            text = "Deleting this note will permanently remove its contents",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // BUTTONS
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+
+                            // CANCEL BUTTON
+                            OutlinedButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = { showDeleteDialog = false },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color.Black
+                                ),
+                                border = BorderStroke(1.dp, Color.Black)
+                            ) {
+                                Text("Cancel")
                             }
-                        }) {
-                            Text("Delete", color = Color.Red)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showDeleteDialog = false }) {
-                            Text("Cancel")
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            // CONFIRM BUTTON
+                            Button(
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    note?.let {
+                                        viewModel.deleteNote(it.id)
+                                        onClose()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF7A3FFF), // purple
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text("Delete")
+                            }
                         }
                     }
-                )
+                }
             }
         }
     }
