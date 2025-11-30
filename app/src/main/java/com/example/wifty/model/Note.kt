@@ -9,6 +9,9 @@ data class Note(
     val content: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
-    val colorLong: Long = 0xFF4B63FFu.toLong(), // default accent as Long
-    val isPinned: Boolean = false
+    val colorLong: Long = 0xFF4B63FFu.toLong(),
+    val isPinned: Boolean = false,
+    val checklist: List<ChecklistItem> = emptyList()   // add this
 )
+
+

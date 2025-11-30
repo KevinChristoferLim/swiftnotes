@@ -1,7 +1,6 @@
 package com.example.wifty.model
 
 data class ChecklistItem(
-    val id: String = "",
     val noteId: String = "",
     val text: String = "",
     val isChecked: Boolean = false,
