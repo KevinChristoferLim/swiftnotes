@@ -410,9 +410,6 @@ fun ViewNoteScreen(
             ReminderDialog(
                 onDismiss = { showReminderDialog = false },
                 onSave = { reminder ->
-                    // You get the fully-populated ReminderData here.
-                    // Persist/schedule as you like. For now we just close.
-                    // Example: viewModel.saveReminderForNote(noteId, reminder)  <-- implement in your app
                     showReminderDialog = false
                 }
             )
@@ -665,6 +662,7 @@ fun ViewNoteScreen(
             ) {
 
                 var showMoreMenu by remember { mutableStateOf(false) }
+                var showDeleteDialog by remember { mutableStateOf(false) }
                 // Bottom Toolbar
                 Box(
                     modifier = Modifier
@@ -719,7 +717,7 @@ fun ViewNoteScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    note?.let { viewModel.deleteNote(it.id); onClose() }
+                                    showDeleteDialog = true
                                     showMoreMenu = false
                                 }
                                 .padding(10.dp),
@@ -758,9 +756,110 @@ fun ViewNoteScreen(
                         }
                     }
                 }
+
+                if (showDeleteDialog) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(enabled = false) { }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        listOf(Color(0xFFE8D8FF), Color(0xFFF3E8FF)) // soft purple gradient
+                                    ),
+                                    shape = RoundedCornerShape(22.dp)
+                                )
+                                .padding(22.dp)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.width(260.dp)
+                            ) {
+                                // Close (X) button
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    IconButton(onClick = { showDeleteDialog = false }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Close",
+                                            tint = Color(0xFF5A3EAA)
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(4.dp))
+
+                                Text(
+                                    "Are you sure you want to delete this note?",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF4E3A82),
+                                )
+
+                                Spacer(Modifier.height(10.dp))
+
+                                Text(
+                                    "Deleting this note will permanently remove its contents",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF5E4E8C),
+                                )
+
+                                Spacer(Modifier.height(22.dp))
+
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    // CANCEL BUTTON (outlined)
+                                    OutlinedButton(
+                                        onClick = { showDeleteDialog = false },
+                                        border = ButtonDefaults.outlinedButtonBorder.copy(
+                                            width = 1.dp,
+                                            brush = Brush.linearGradient(
+                                                listOf(Color(0xFF9079D8), Color(0xFF8060D0))
+                                            )
+                                        ),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            containerColor = Color.Transparent,
+                                            contentColor = Color(0xFF5A3EAA)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Cancel")
+                                    }
+
+                                    Spacer(Modifier.width(14.dp))
+
+                                    // CONFIRM BUTTON (solid purple)
+                                    Button(
+                                        onClick = {
+                                            note?.let {
+                                                viewModel.deleteNote(it.id)
+                                                onClose()
+                                            }
+                                            showDeleteDialog = false
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF7A42C8),
+                                            contentColor = Color.White
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Confirm")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    }
             }
-
-
         }
     }
 }

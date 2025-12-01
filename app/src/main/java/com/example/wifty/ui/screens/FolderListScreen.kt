@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.sp
 import com.example.wifty.viewmodel.FolderViewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +34,14 @@ fun FolderListScreen(
     onBack: () -> Unit
 ) {
     val folders by viewModel.folders.collectAsState()
+
+    // STATE for search
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Filter folders by title
+    val filteredFolders = folders.filter {
+        it.title.contains(searchQuery, ignoreCase = true)
+    }
 
     Scaffold(
         topBar = {
@@ -45,37 +56,61 @@ fun FolderListScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                },
-                actions = {
-                    IconButton(onClick = onCreateFolder) {
-                        Icon(Icons.Default.Add, contentDescription = "Create Folder")
-                    }
                 }
             )
+        },
+
+        // FAB in bottom-right
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onCreateFolder,
+                containerColor = Color(0xFF4B63FF)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Create Folder", tint = Color.White)
+            }
         }
     ) { padding ->
-        LazyColumn(
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            items(folders) { folder ->
-                FolderCard(
-                    name = folder.title,
-                    hashtag = folder.tag,
-                    notesCount = 0, // You do not store notes inside folder yet
-                    gradientColors = listOf(
-                        Color(folder.colorLong),
-                        Color(folder.colorLong).copy(alpha = 0.7f)
-                    ),
-                    onClick = { onOpenFolder(folder.id) }
-                )
+
+            // 🔍 Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search folders...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                singleLine = true
+            )
+
+            // Folder list
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(filteredFolders) { folder ->
+                    FolderCard(
+                        name = folder.title,
+                        hashtag = folder.tag,
+                        notesCount = 0,
+                        gradientColors = listOf(
+                            Color(folder.colorLong),
+                            Color(folder.colorLong).copy(alpha = 0.7f)
+                        ),
+                        onClick = { onOpenFolder(folder.id) }
+                    )
+                }
             }
         }
     }
 }
+
 
 @Composable
 fun FolderCard(
@@ -111,10 +146,6 @@ fun FolderCard(
     }
 }
 
-/**
- * Generates a predictable gradient color per folder.
- * You can customize it or store color in Folder entity.
- */
 fun generateGradient(seed: String): List<Color> {
     val index = (seed.hashCode().absoluteValue % 4)
 

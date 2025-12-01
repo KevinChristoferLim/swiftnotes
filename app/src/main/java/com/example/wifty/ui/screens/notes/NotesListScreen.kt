@@ -94,7 +94,7 @@ fun NotesListScreen(
                     Icon(Icons.Default.Search, contentDescription = "Search")
                     Spacer(Modifier.width(18.dp))
 
-                    // FOLDERS BUTTON (NEW)
+                    // FOLDERS BUTTON
                     Icon(
                         imageVector = Icons.Default.AccountBox,
                         contentDescription = "Folders",
