@@ -5,14 +5,20 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.wifty.ui.screens.*
+import com.example.wifty.ui.screens.notes.*
 import com.example.wifty.viewmodel.NotesViewModel
+import com.example.wifty.viewmodel.FolderViewModel
 
 @Composable
-fun AppNavGraph(navController: NavHostController, notesVM: NotesViewModel) {
+fun AppNavGraph(
+    navController: NavHostController,
+    notesVM: NotesViewModel,
+    folderVM: FolderViewModel
+) {
 
     NavHost(
         navController = navController,
-        startDestination = Routes.CoverView.route // Changed start destination
+        startDestination = Routes.CoverView.route
     ) {
 
         // ---- Cover Screen ----
@@ -26,7 +32,7 @@ fun AppNavGraph(navController: NavHostController, notesVM: NotesViewModel) {
             )
         }
 
-        // ---- Notes List ----
+        // ---- NOTES LIST ----
         composable(Routes.NotesList.route) {
             NotesListScreen(
                 viewModel = notesVM,
@@ -35,11 +41,14 @@ fun AppNavGraph(navController: NavHostController, notesVM: NotesViewModel) {
                 },
                 onOpenNote = { id ->
                     navController.navigate(Routes.ViewNote.pass(id))
+                },
+                onOpenFolders = {
+                    navController.navigate(Routes.FolderList.route)
                 }
             )
         }
 
-        // ---- Create Note ----
+        // ---- CREATE NOTE ----
         composable(Routes.CreateNote.route) {
             CreateNoteScreen(
                 viewModel = notesVM,
@@ -51,13 +60,44 @@ fun AppNavGraph(navController: NavHostController, notesVM: NotesViewModel) {
             )
         }
 
-        // ---- View Note ----
+        // ---- VIEW NOTE ----
         composable(Routes.ViewNote.route) { backStack ->
             val id = backStack.arguments?.getString("noteId") ?: ""
             ViewNoteScreen(
                 noteId = id,
                 viewModel = notesVM,
                 onClose = { navController.popBackStack() }
+            )
+        }
+
+        // ---- FOLDER LIST ----
+        composable(Routes.FolderList.route) {
+            FolderListScreen(
+                viewModel = folderVM,
+                onCreateFolder = { navController.navigate(Routes.CreateFolder.route) },
+                onOpenFolder = { folderId ->
+                    navController.navigate(Routes.ViewFolder.pass(folderId))
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ---- CREATE FOLDER ----
+        composable(Routes.CreateFolder.route) {
+            AddFolderScreen(
+                folderViewModel = folderVM,
+                onSaved = { navController.popBackStack() }
+            )
+        }
+
+        // ---- VIEW FOLDER ----
+        composable(Routes.ViewFolder.route) { backStack ->
+            val id = backStack.arguments?.getString("folderId") ?: ""
+            ViewFolderScreen(
+                folderId = id,
+                folderVM = folderVM,
+                notesVM = notesVM,
+                onBack = { navController.popBackStack() }
             )
         }
     }

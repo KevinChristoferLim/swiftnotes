@@ -4,19 +4,25 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.example.wifty.viewmodel.FolderViewModel
 import com.github.skydoves.colorpicker.compose.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddFolderScreen() {
+fun AddFolderScreen(
+    folderViewModel: FolderViewModel,
+    onSaved: () -> Unit,
+    onCancel: () -> Unit = {}
+) {
 
     var title by remember { mutableStateOf("") }
     var tag by remember { mutableStateOf("") }
@@ -62,7 +68,6 @@ fun AddFolderScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- COLOR BOX THAT OPENS PICKER ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -117,7 +122,16 @@ fun AddFolderScreen() {
         Spacer(modifier = Modifier.height(40.dp))
 
         Button(
-            onClick = { /* Save folder */ },
+            onClick = {
+                if (title.isNotBlank()) {
+                    folderViewModel.createFolder(
+                        title = title,
+                        tag = tag,
+                        colorLong = selectedColor.toArgb().toLong()   // 👈 convert Color → Long
+                    )
+                    onSaved()
+                }
+            },
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
             Text("Create")

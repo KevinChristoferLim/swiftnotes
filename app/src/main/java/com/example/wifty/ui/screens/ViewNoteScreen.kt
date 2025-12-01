@@ -660,116 +660,112 @@ fun ViewNoteScreen(
                 Spacer(Modifier.height(40.dp))
             }
 
-            // Bottom toolbar (list button inserts a real checklist at cursor)
             Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 20.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
-                Row(
+
+                var showMoreMenu by remember { mutableStateOf(false) }
+                // Bottom Toolbar
+                Box(
                     modifier = Modifier
-                        .background(Color(0xFFB9A8E6), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .align(Alignment.BottomCenter)
+                        .padding(start = 5.dp,bottom = 10.dp)
                 ) {
 
-                    IconButton(onClick = {
-                        if (!isLocked) imagePickerLauncher.launch("image/*")
-                    }) {
-                        Icon(Icons.Outlined.Info, contentDescription = null, tint = Color.White)
-                    }
+                    Row(
+                        modifier = Modifier
+                            .background(Color(0xFFB9A8E6), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 24.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = {
+                            if (!isLocked) imagePickerLauncher.launch("image/*")
+                        }) {
+                            Icon(Icons.Outlined.Info, contentDescription = null, tint = Color.White)
+                        }
 
-                    IconButton(onClick = {
-                        // Insert a real checklist at current cursor position (in focused block)
-                        insertChecklistAtCursor()
-                    }) {
-                        Icon(Icons.Default.List, contentDescription = null, tint = Color.White)
-                    }
+                        IconButton(onClick = { insertChecklistAtCursor() }) {
+                            Icon(Icons.Default.List, contentDescription = null, tint = Color.White)
+                        }
 
-                    IconButton(onClick = {
-                        if (!isLocked) filePickerLauncher.launch("*/*")
-                    }) {
-                        Icon(
-                            Icons.Default.AccountBox,
-                            contentDescription = null,
-                            tint = Color.White
-                        )
-                    }
+                        IconButton(onClick = {
+                            if (!isLocked) filePickerLauncher.launch("*/*")
+                        }) {
+                            Icon(Icons.Default.AccountBox, contentDescription = null, tint = Color.White)
+                        }
 
-                    var showMoreMenu by remember { mutableStateOf(false) }
-                    IconButton(onClick = { showMoreMenu = !showMoreMenu }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color.White)
+                        IconButton(onClick = { showMoreMenu = !showMoreMenu }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color.White)
+                        }
                     }
+                }
 
-                    // simple More menu
-                    if (showMoreMenu) {
-                        Column(
+                // Floating More Menu
+                if (showMoreMenu) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)   // relative to whole screen
+                            .offset(x = (-20).dp, y = (-130).dp)  // perfect placement above the bar
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    listOf(Color(0xFFEAE2FF), Color(0xFFF7F1FF))
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Row(
                             modifier = Modifier
-                                .padding(end = 16.dp, bottom = 70.dp)
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        listOf(
-                                            Color(0xFFEAE2FF),
-                                            Color(0xFFF7F1FF)
-                                        )
-                                    ),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .padding(12.dp)
+                                .fillMaxWidth()
+                                .clickable {
+                                    note?.let { viewModel.deleteNote(it.id); onClose() }
+                                    showMoreMenu = false
+                                }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        // Delete note
-                                        note?.let { viewModel.deleteNote(it.id); onClose() }
-                                        showMoreMenu = false
-                                    }
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Delete, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Delete")
-                            }
+                            Icon(Icons.Default.Delete, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Delete")
+                        }
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        note?.let { viewModel.copyNote(it) }
-                                        showMoreMenu = false
-                                    }
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Info, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Copy")
-                            }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    note?.let { viewModel.copyNote(it) }
+                                    showMoreMenu = false
+                                }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Info, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Copy")
+                        }
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { showMoreMenu = false }
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Share, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Collaborator")
-                            }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showMoreMenu = false }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Collaborator")
                         }
                     }
                 }
             }
+
+
         }
     }
 }
 
-/* -------------------------
-   Reminder UI (full Version B: 3-step time flow + place tab)
-   ------------------------- */
+   //Reminder UI (full Version B: 3-step time flow + place tab)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ReminderDialog(
@@ -821,9 +817,7 @@ private fun ReminderDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                // ----------------------------
                 // TIME TAB (3 STEPS)
-                // ----------------------------
                 if (tab == 0) {
 
                     Text("Step ${step + 1} of 3", style = MaterialTheme.typography.titleSmall)
@@ -955,9 +949,7 @@ private fun ReminderDialog(
                     }
                 }
 
-                // ----------------------------
                 // PLACE TAB
-                // ----------------------------
                 if (tab == 1) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -979,9 +971,7 @@ private fun ReminderDialog(
 
                 Spacer(Modifier.height(16.dp))
 
-                // ----------------------------
                 // SAVE
-                // ----------------------------
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End

@@ -7,7 +7,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.wifty.navigation.AppNavGraph
 import com.example.wifty.ui.theme.WiftyTheme
-import com.example.wifty.viewmodel.NotesViewModel
+import com.example.wifty.viewmodel.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,13 +17,16 @@ class MainActivity : ComponentActivity() {
             WiftyTheme {
                 val navController = rememberNavController()
 
-                // 👉 Create your NotesViewModel here
+                // Create your NotesViewModel here
                 val notesVM: NotesViewModel = viewModel()
+                val folderVM: FolderViewModel = viewModel()
 
-                // 👉 Pass it to the navigation graph
+
+                // Pass it to the navigation graph
                 AppNavGraph(
                     navController = navController,
-                    notesVM = notesVM
+                    notesVM = notesVM,
+                    folderVM = folderVM
                 )
             }
         }
