@@ -7,6 +7,7 @@ import com.example.wifty.repository.FolderRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class FolderViewModel(
     private val repo: FolderRepository = FolderRepository()
@@ -31,6 +32,7 @@ class FolderViewModel(
         viewModelScope.launch {
             repo.addFolder(
                 Folder(
+                    id = UUID.randomUUID().toString(),
                     title = title,
                     tag = tag,
                     colorLong = colorLong

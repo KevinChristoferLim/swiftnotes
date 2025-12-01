@@ -19,7 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.wifty.viewmodel.FolderViewModel
-import com.example.wifty.model.Folder
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 

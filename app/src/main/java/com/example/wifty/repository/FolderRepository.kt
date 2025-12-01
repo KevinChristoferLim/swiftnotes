@@ -7,17 +7,13 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class FolderRepository {
 
-    // ------------------------------------------------------------
     // In-Memory Data (Acts Like Database)
-    // ------------------------------------------------------------
     private val foldersData = MutableStateFlow<List<Folder>>(emptyList())
 
     // This is what the ViewModel is trying to call
     fun getFolders(): StateFlow<List<Folder>> = foldersData.asStateFlow()
 
-    // ------------------------------------------------------------
     // CRUD OPERATIONS
-    // ------------------------------------------------------------
 
     suspend fun addFolder(folder: Folder) {
         foldersData.value = foldersData.value + folder

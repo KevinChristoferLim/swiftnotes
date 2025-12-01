@@ -36,16 +36,6 @@ fun ViewFolderScreen(
     // Subscribe to notes list from NotesViewModel
     val notes by notesVM.notes.collectAsState()
 
-    // If you later add a method to folderVM to load folder by id, call it here.
-    // Example (pseudo):
-    // LaunchedEffect(folderId) {
-    //    folderState = folderVM.getFolderById(folderId)
-    // }
-    //
-    // At the moment we leave folderState null because your FolderViewModel doesn't expose a getter.
-
-    // For filtering notes we will try to match by folder tag (if available).
-    // Best-effort: if the folder exists and has a tag, filter by that tag.
     val filteredNotes = remember(notes, folderState, folderId) {
         val tag = folderState?.tag?.ifBlank { null }
         if (tag != null) {
@@ -54,8 +44,6 @@ fun ViewFolderScreen(
                         || n.content.contains(tag, ignoreCase = true)
             }
         } else {
-            // If we don't know the tag, try to find notes that mention the folderId (rare),
-            // otherwise just show all notes (so the screen is useful)
             val byId = notes.filter { n ->
                 n.title.contains(folderId, ignoreCase = true)
                         || n.content.contains(folderId, ignoreCase = true)
@@ -149,7 +137,7 @@ fun ViewFolderScreen(
     }
 }
 
-/** Simple row representation for a note inside a folder view. */
+// Simple row representation for a note inside a folder view.
 @Composable
 private fun FolderNoteRow(note: Note, onClick: () -> Unit) {
     Card(
