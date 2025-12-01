@@ -46,6 +46,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.31.3-beta")
     implementation("com.github.skydoves:colorpicker-compose:1.1.2")
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil:2.6.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

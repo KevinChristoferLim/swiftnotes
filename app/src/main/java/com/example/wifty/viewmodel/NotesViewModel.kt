@@ -10,10 +10,6 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import android.net.Uri
 
-/**
- * NotesViewModel holds list of notes and provides create/update/delete operations.
- * Uses a simple in-memory NotesRepository. Replace repo implementation as needed.
- */
 class NotesViewModel(
     private val repo: NotesRepository = NotesRepository()
 ) : ViewModel() {
@@ -22,7 +18,6 @@ class NotesViewModel(
     val notes: StateFlow<List<Note>> = _notes
 
     init {
-        // initial load (empty)
         refreshNotes()
     }
 
@@ -32,9 +27,6 @@ class NotesViewModel(
         }
     }
 
-    /**
-     * Creates a new blank note and returns its id via callback.
-     */
     fun createNote(onCreated: (String) -> Unit = {}) {
         viewModelScope.launch {
             val note = repo.createNote()
@@ -75,17 +67,35 @@ class NotesViewModel(
         }
     }
 
+    fun togglePin(noteId: String) {
+        val updatedNotes = _notes.value.map {
+            if (it.id == noteId) it.copy(isPinned = !it.isPinned) else it
+        }
+        _notes.value = updatedNotes
+        // You may want to update the repo here if persistence is needed
+    }
+
+    fun toggleLock(noteId: String) {
+        val updatedNotes = _notes.value.map {
+            if (it.id == noteId) it.copy(isLocked = !it.isLocked) else it
+        }
+        _notes.value = updatedNotes
+        // You may want to update the repo here if persistence is needed
+    }
+
+    fun setReminder(noteId: String, timeInMillis: Long) {
+        // Implement Reminder logic using WorkManager here
+    }
+
     fun attachImageToNote(noteId: String, uri: Uri) {
         val note = _notes.value.find { it.id == noteId } ?: return
-        val updatedContent = note.content + "\n[Image Attached: $uri]" // placeholder
+        val updatedContent = note.content + "\n[Image Attached: $uri]"
         updateNote(note.copy(content = updatedContent))
     }
 
     fun attachFileToNote(noteId: String, uri: Uri) {
         val note = _notes.value.find { it.id == noteId } ?: return
-        val updatedContent = note.content + "\n[File Attached: $uri]" // placeholder
+        val updatedContent = note.content + "\n[File Attached: $uri]"
         updateNote(note.copy(content = updatedContent))
     }
-
-
 }

@@ -11,6 +11,7 @@ data class Note(
     val updatedAt: Long = System.currentTimeMillis(),
     val colorLong: Long = 0xFF4B63FFu.toLong(),
     val isPinned: Boolean = false,
+    val isLocked: Boolean = false,
     val checklist: List<ChecklistItem> = emptyList()   // add this
 )
 

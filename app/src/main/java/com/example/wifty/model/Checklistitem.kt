@@ -4,5 +4,7 @@ data class ChecklistItem(
     val noteId: String = "",
     val text: String = "",
     val isChecked: Boolean = false,
-    val order: Int = 0                  // For reordering items
+    val isChecklist: Boolean = true,
+    val order: Int = 0
 )
+
