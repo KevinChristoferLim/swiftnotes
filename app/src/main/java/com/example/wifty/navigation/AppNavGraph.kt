@@ -4,10 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.wifty.ui.screens.CoverViewScreen
-import com.example.wifty.ui.screens.CreateNoteScreen
-import com.example.wifty.ui.screens.NotesListScreen
-import com.example.wifty.ui.screens.ViewNoteScreen
+import com.example.wifty.ui.screens.*
 import com.example.wifty.ui.screens.login.AuthScreen
 import com.example.wifty.viewmodel.NotesViewModel
 
@@ -23,15 +20,13 @@ fun AppNavGraph(navController: NavHostController, notesVM: NotesViewModel) {
         composable(Routes.CoverView.route) {
             CoverViewScreen(
                 onContinue = {
-                    // Go to LOGIN first (your requested fix)
-                    navController.navigate(Routes.Login.route) {
+                    navController.navigate(Routes.NotesList.route) {
                         popUpTo(Routes.CoverView.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        // ---- Login Screen ----
         composable(Routes.Login.route) {
             AuthScreen(
                 onLoginSuccess = {
