@@ -3,13 +3,13 @@ package com.example.wifty.navigation
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import com.example.wifty.ui.screens.login.AuthScreen
 import androidx.navigation.compose.composable
-import com.example.wifty.ui.screens.*
 import com.example.wifty.ui.screens.AccountManagement.ProfileScreen
+import com.example.wifty.ui.screens.login.AuthScreen
+import com.example.wifty.ui.screens.*
 import com.example.wifty.ui.screens.notes.*
-import com.example.wifty.viewmodel.NotesViewModel
 import com.example.wifty.viewmodel.FolderViewModel
+import com.example.wifty.viewmodel.NotesViewModel
 
 @Composable
 fun AppNavGraph(
@@ -61,11 +61,14 @@ fun AppNavGraph(
                 onCreateNewNote = {
                     navController.navigate(Routes.CreateNote.route)
                 },
-                onOpenNote = { id ->
+                onOpenNote = { id: String ->
                     navController.navigate(Routes.ViewNote.pass(id))
                 },
                 onOpenFolders = {
                     navController.navigate(Routes.FolderList.route)
+                },
+                onOpenProfile = {
+                    navController.navigate(Routes.Profile.route)
                 }
             )
         }
@@ -97,7 +100,7 @@ fun AppNavGraph(
             FolderListScreen(
                 viewModel = folderVM,
                 onCreateFolder = { navController.navigate(Routes.CreateFolder.route) },
-                onOpenFolder = { folderId ->
+                onOpenFolder = { folderId: String ->
                     navController.navigate(Routes.ViewFolder.pass(folderId))
                 },
                 onBack = { navController.popBackStack() }
