@@ -29,6 +29,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.wifty.ui.screens.modules.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,7 +42,7 @@ fun ViewNoteScreen(
     viewModel: NotesViewModel,
     onClose: () -> Unit
 ) {
-    // --- UI state (kept local in the screen) ---
+    // UI state (kept local in the screen)
     var note by remember { mutableStateOf<Note?>(null) }
     var title by remember { mutableStateOf(TextFieldValue("")) }
     var colorLong by remember { mutableStateOf(0xFF4B63FFu.toLong()) }
@@ -70,7 +74,7 @@ fun ViewNoteScreen(
         uri?.let { if (!isLocked) note?.let { n -> viewModel.attachFileToNote(n.id, it) } }
     }
 
-    // --- Helper lambdas that use the pure functions in other modules ---
+    //Helper lambdas that use the pure functions in other modules
 
     fun syncFieldValuesFromBlocksLocal(currentBlocks: List<Block>) {
         blockFieldValues = currentBlocks.map { b ->
@@ -283,24 +287,17 @@ fun ViewNoteScreen(
                                 onKeyEvent = { ke ->
                                     if (isLocked) return@ChecklistBlockEditor false
 
-                                    val native = ke.nativeKeyEvent
+                                    val isBackspace = ke.key == Key.Backspace
+                                    val isEnter = ke.key == Key.Enter
+                                    val isKeyUp = ke.type == KeyEventType.KeyUp
 
-                                    // Backspace
-                                    if (native.keyCode == android.view.KeyEvent.KEYCODE_DEL &&
-                                        ke.type == KeyEventType.KeyUp &&
-                                        tfv.text.isEmpty()
-                                    ) {
+                                    if (isBackspace && isKeyUp && tfv.text.isEmpty()) {
                                         deleteChecklistOnBackspaceLocal(index)
                                         true
-                                    }
-                                    // Enter
-                                    else if (native.keyCode == android.view.KeyEvent.KEYCODE_ENTER &&
-                                        ke.type == KeyEventType.KeyUp
-                                    ) {
+                                    } else if (isEnter && isKeyUp) {
                                         enterInChecklistLocal(index)
                                         true
-                                    }
-                                    else false
+                                    } else false
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             )

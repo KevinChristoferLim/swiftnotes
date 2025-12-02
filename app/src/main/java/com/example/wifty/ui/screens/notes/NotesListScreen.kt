@@ -1,6 +1,6 @@
 package com.example.wifty.ui.screens.notes
 
-import androidx.compose.foundation.Image // Import Image
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -17,38 +17,40 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale // Import ContentScale
-import androidx.compose.ui.res.painterResource // Import painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.example.wifty.R // Import your Resource file
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Popup
-import androidx.compose.ui.unit.IntOffset
+import com.example.wifty.R
 import com.example.wifty.model.Note
 import com.example.wifty.viewmodel.FolderViewModel
 import com.example.wifty.viewmodel.NotesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import androidx.compose.ui.input.pointer.pointerInput
 
-// Helper function for time
+// Helper - Relative time
 fun formatRelativeTime(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
     return when {
         diff < TimeUnit.MINUTES.toMillis(1) -> "Just now"
-        diff < TimeUnit.HOURS.toMillis(1) -> "${diff / TimeUnit.MINUTES.toMillis(1)} minutes ago"
-        diff < TimeUnit.DAYS.toMillis(1) -> "${diff / TimeUnit.HOURS.toMillis(1)} hours ago"
+        diff < TimeUnit.HOURS.toMillis(1) ->
+            "${diff / TimeUnit.MINUTES.toMillis(1)} minutes ago"
+        diff < TimeUnit.DAYS.toMillis(1) ->
+            "${diff / TimeUnit.HOURS.toMillis(1)} hours ago"
         diff < TimeUnit.DAYS.toMillis(2) -> "Yesterday"
         else -> SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(timestamp))
     }
 }
 
+// MAIN SCREEN
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesListScreen(
@@ -65,20 +67,19 @@ fun NotesListScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var selectedNote by remember { mutableStateOf<Note?>(null) }
     var showMoveDialog by remember { mutableStateOf(false) }
-
-    // raw screen pixel offset
     var menuOffset by remember { mutableStateOf(Offset.Zero) }
 
-    // 1. If Empty -> Show Landing Screen
-    if (notes.isEmpty()) {
-        LandingScreen(
-            onCreateNewNote = onCreateNewNote,
-            onOpenFolders = onOpenFolders,
-            onOpenProfile = onOpenProfile
-        )
-    } else {
-        // 2. If Not Empty -> Show Grid with Center FAB
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFFF4EDFF), Color.White)
+                )
+            )
+    ) {
         Scaffold(
+            containerColor = Color.Transparent,
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = onCreateNewNote,
@@ -87,58 +88,22 @@ fun NotesListScreen(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Note", tint = Color.White)
                 }
-            },
-            floatingActionButtonPosition = FabPosition.Center
+            }
         ) { innerPadding ->
+
             Column(
                 Modifier
                     .padding(innerPadding)
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                // Top Bar
+
+                // TOP BAR
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-    Scaffold(
-        containerColor = Color.Transparent,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onCreateNewNote,
-                containerColor = Color(0xFF4B63FF)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Note", tint = Color.White)
-            }
-        }
-    ) { innerPadding ->
-
-        Column(
-            Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-
-            // Top Bar
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-
-                Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = "Back",
-                    modifier = Modifier.size(26.dp)
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-
-                    Icon(Icons.Default.Search, contentDescription = "Search")
-                    Spacer(Modifier.width(18.dp))
-
                     Icon(
                         Icons.Default.ArrowBack,
                         contentDescription = "Back",
@@ -146,8 +111,10 @@ fun NotesListScreen(
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+
                         Icon(Icons.Default.Search, contentDescription = "Search")
                         Spacer(Modifier.width(18.dp))
+
                         Icon(
                             imageVector = Icons.Default.AccountBox,
                             contentDescription = "Folders",
@@ -155,16 +122,16 @@ fun NotesListScreen(
                                 .size(26.dp)
                                 .clickable { onOpenFolders() }
                         )
+
                         Spacer(Modifier.width(18.dp))
 
-                        // ✨ UPDATED: PROFILE IMAGE ✨
                         Image(
                             painter = painterResource(id = R.drawable.sample_profile),
                             contentDescription = "Profile",
-                            contentScale = ContentScale.Crop, // Ensures image fills the circle
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(34.dp)
-                                .clip(CircleShape) // Makes it round
+                                .clip(CircleShape)
                                 .clickable { onOpenProfile() }
                         )
                     }
@@ -172,7 +139,7 @@ fun NotesListScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                // Notes Grid
+                // NOTES GRID
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -180,112 +147,112 @@ fun NotesListScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(notes) { note ->
-                        NoteCard(note = note, onClick = { onOpenNote(note.id) })
+                        NoteCard(
+                            note = note,
+                            onClick = { onOpenNote(note.id) },
+                            onLongPress = { pressOffset ->
+                                selectedNote = note
+                                menuOffset = pressOffset
+                                menuExpanded = true
+                            }
+                        )
                     }
                 }
             }
         }
-    }
 
-@Composable
-fun NoteCard(note: Note, onClick: () -> Unit) {
-    //---------------------------------------------------------
-    // Popup Context Menu
-    //---------------------------------------------------------
-    if (menuExpanded && selectedNote != null) {
-        Popup(
-            alignment = Alignment.TopStart,
-            offset = IntOffset(menuOffset.x.toInt(), menuOffset.y.toInt()),
-            onDismissRequest = { menuExpanded = false }
-        ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                tonalElevation = 6.dp,
-                color = MaterialTheme.colorScheme.surface
+        // POPUP MENU
+        if (menuExpanded && selectedNote != null) {
+            Popup(
+                alignment = Alignment.TopStart,
+                offset = IntOffset(menuOffset.x.toInt(), menuOffset.y.toInt()),
+                onDismissRequest = { menuExpanded = false }
             ) {
-                Column(Modifier
-                    .padding(8.dp)
-                    .width(140.dp)
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    tonalElevation = 6.dp,
+                    color = MaterialTheme.colorScheme.surface
                 ) {
+                    Column(
+                        Modifier
+                            .padding(8.dp)
+                            .width(150.dp)
+                    ) {
+                        Text(
+                            "Delete",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.deleteNote(selectedNote!!.id)
+                                    menuExpanded = false
+                                }
+                                .padding(12.dp)
+                        )
 
-                    Text(
-                        "Delete",
-                        modifier = Modifier
-                            .clickable {
-                                viewModel.deleteNote(selectedNote!!.id)
-                                menuExpanded = false
-                            }
-                            .padding(12.dp)
-                    )
-
-                    Text(
-                        "Move to folder",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                menuExpanded = false
-                                showMoveDialog = true
-                            }
-                            .padding(12.dp)
-                    )
+                        Text(
+                            "Move to folder",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    menuExpanded = false
+                                    showMoveDialog = true
+                                }
+                                .padding(12.dp)
+                        )
+                    }
                 }
             }
         }
-    }
 
-    //-------------------------------------
-    // Move-to-folder dialog
-    //-------------------------------------
-    if (showMoveDialog && selectedNote != null) {
-        Dialog(onDismissRequest = { showMoveDialog = false }) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                tonalElevation = 6.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .widthIn(min = 260.dp)
+        // MOVE TO FOLDER DIALOG
+        if (showMoveDialog && selectedNote != null) {
+            Dialog(onDismissRequest = { showMoveDialog = false }) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    tonalElevation = 6.dp
                 ) {
-                    Text("Move Note To...", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(12.dp))
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .widthIn(min = 260.dp)
+                    ) {
+                        Text("Move Note To...", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(12.dp))
 
-                    if (folders.isEmpty()) {
-                        Text("No folders available.", color = Color.Gray)
-                    } else {
-                        folders.forEach { folder ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.moveNoteToFolder(
-                                            selectedNote!!.id,
-                                            folder.id
-                                        )
-                                        showMoveDialog = false
-                                    }
-                                    .padding(vertical = 12.dp)
-                            ) {
-                                Box(
-                                    Modifier
-                                        .size(14.dp)
-                                        .background(
-                                            Color(folder.colorLong),
-                                            shape = RoundedCornerShape(4.dp)
-                                        )
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Text(folder.title)
+                        if (folders.isEmpty()) {
+                            Text("No folders available.", color = Color.Gray)
+                        } else {
+                            folders.forEach { folder ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.moveNoteToFolder(
+                                                selectedNote!!.id,
+                                                folder.id
+                                            )
+                                            showMoveDialog = false
+                                        }
+                                        .padding(vertical = 12.dp)
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .size(14.dp)
+                                            .background(Color(folder.colorLong), RoundedCornerShape(4.dp))
+                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(folder.title)
+                                }
                             }
                         }
-                    }
 
-                    Spacer(Modifier.height(16.dp))
-                    TextButton(
-                        onClick = { showMoveDialog = false },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Text("Cancel")
+                        Spacer(Modifier.height(16.dp))
+                        TextButton(
+                            onClick = { showMoveDialog = false },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("Cancel")
+                        }
                     }
                 }
             }
@@ -293,9 +260,7 @@ fun NoteCard(note: Note, onClick: () -> Unit) {
     }
 }
 
-//---------------------------------------------------------
-// Note Card (captures global press offset)
-//---------------------------------------------------------
+// NOTE CARD
 @Composable
 fun NoteCard(
     note: Note,
@@ -303,7 +268,8 @@ fun NoteCard(
     onLongPress: (Offset) -> Unit
 ) {
     val timeLabel = remember(note.updatedAt) { formatRelativeTime(note.updatedAt) }
-    val backgroundColor = if (note.colorLong == 0L) Color(0xFFD3E3FD) else Color(note.colorLong)
+    val backgroundColor =
+        if (note.colorLong == 0L) Color(0xFFD3E3FD) else Color(note.colorLong)
 
     Box(
         modifier = Modifier
@@ -312,27 +278,33 @@ fun NoteCard(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onClick() },
-                    onLongPress = { offset ->
-                        onLongPress(offset)
-                    }
+                    onLongPress = { offset -> onLongPress(offset) }
                 )
             }
             .background(backgroundColor.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
             .padding(14.dp)
     ) {
         Column(Modifier.fillMaxSize()) {
+
             Text(
                 note.title.ifBlank { "Untitled" },
                 style = MaterialTheme.typography.titleMedium
             )
+
             Spacer(Modifier.height(6.dp))
+
             Text(
                 if (note.content.isBlank()) "(Empty note)"
                 else note.content.take(50) + if (note.content.length > 50) "..." else "",
                 style = MaterialTheme.typography.bodySmall
             )
+
             Spacer(Modifier.weight(1f))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Text(
                     SimpleDateFormat("MMM dd", Locale.getDefault()).format(Date(note.createdAt)),
                     style = MaterialTheme.typography.labelSmall
