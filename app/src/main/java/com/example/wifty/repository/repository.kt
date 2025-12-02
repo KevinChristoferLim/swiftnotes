@@ -44,4 +44,21 @@
                 notes[note.id] = note
             }
         }
+
+        suspend fun moveNoteToFolder(noteId: String, folderId: String?) {
+            mutex.withLock {
+                val note = notes[noteId] ?: return
+                val updated = note.copy(
+                    folderId = folderId,
+                    updatedAt = System.currentTimeMillis()
+                )
+                notes[noteId] = updated
+            }
+        }
+
+        suspend fun getNotesForFolder(folderId: String): List<Note> {
+            return mutex.withLock {
+                notes.values.filter { it.folderId == folderId }
+            }
+        }
     }

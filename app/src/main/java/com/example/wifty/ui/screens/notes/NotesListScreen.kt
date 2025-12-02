@@ -3,6 +3,7 @@ package com.example.wifty.ui.screens.notes
 import androidx.compose.foundation.Image // Import Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -10,22 +11,26 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBox
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale // Import ContentScale
 import androidx.compose.ui.res.painterResource // Import painterResource
 import androidx.compose.ui.unit.dp
 import com.example.wifty.R // Import your Resource file
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.unit.IntOffset
 import com.example.wifty.model.Note
+import com.example.wifty.viewmodel.FolderViewModel
 import com.example.wifty.viewmodel.NotesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -48,12 +53,21 @@ fun formatRelativeTime(timestamp: Long): String {
 @Composable
 fun NotesListScreen(
     viewModel: NotesViewModel,
+    folderViewModel: FolderViewModel,
     onCreateNewNote: () -> Unit,
     onOpenNote: (String) -> Unit,
     onOpenFolders: () -> Unit,
     onOpenProfile: () -> Unit
 ) {
     val notes by viewModel.notes.collectAsState()
+    val folders by folderViewModel.folders.collectAsState()
+
+    var menuExpanded by remember { mutableStateOf(false) }
+    var selectedNote by remember { mutableStateOf<Note?>(null) }
+    var showMoveDialog by remember { mutableStateOf(false) }
+
+    // raw screen pixel offset
+    var menuOffset by remember { mutableStateOf(Offset.Zero) }
 
     // 1. If Empty -> Show Landing Screen
     if (notes.isEmpty()) {
@@ -88,6 +102,43 @@ fun NotesListScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+    Scaffold(
+        containerColor = Color.Transparent,
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onCreateNewNote,
+                containerColor = Color(0xFF4B63FF)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Note", tint = Color.White)
+            }
+        }
+    ) { innerPadding ->
+
+        Column(
+            Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+
+            // Top Bar
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    modifier = Modifier.size(26.dp)
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Icon(Icons.Default.Search, contentDescription = "Search")
+                    Spacer(Modifier.width(18.dp))
+
                     Icon(
                         Icons.Default.ArrowBack,
                         contentDescription = "Back",
@@ -135,20 +186,138 @@ fun NotesListScreen(
             }
         }
     }
-}
 
 @Composable
 fun NoteCard(note: Note, onClick: () -> Unit) {
+    //---------------------------------------------------------
+    // Popup Context Menu
+    //---------------------------------------------------------
+    if (menuExpanded && selectedNote != null) {
+        Popup(
+            alignment = Alignment.TopStart,
+            offset = IntOffset(menuOffset.x.toInt(), menuOffset.y.toInt()),
+            onDismissRequest = { menuExpanded = false }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 6.dp,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(Modifier
+                    .padding(8.dp)
+                    .width(140.dp)
+                ) {
+
+                    Text(
+                        "Delete",
+                        modifier = Modifier
+                            .clickable {
+                                viewModel.deleteNote(selectedNote!!.id)
+                                menuExpanded = false
+                            }
+                            .padding(12.dp)
+                    )
+
+                    Text(
+                        "Move to folder",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                menuExpanded = false
+                                showMoveDialog = true
+                            }
+                            .padding(12.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    //-------------------------------------
+    // Move-to-folder dialog
+    //-------------------------------------
+    if (showMoveDialog && selectedNote != null) {
+        Dialog(onDismissRequest = { showMoveDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 6.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .widthIn(min = 260.dp)
+                ) {
+                    Text("Move Note To...", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(12.dp))
+
+                    if (folders.isEmpty()) {
+                        Text("No folders available.", color = Color.Gray)
+                    } else {
+                        folders.forEach { folder ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.moveNoteToFolder(
+                                            selectedNote!!.id,
+                                            folder.id
+                                        )
+                                        showMoveDialog = false
+                                    }
+                                    .padding(vertical = 12.dp)
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(14.dp)
+                                        .background(
+                                            Color(folder.colorLong),
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(folder.title)
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    TextButton(
+                        onClick = { showMoveDialog = false },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        }
+    }
+}
+
+//---------------------------------------------------------
+// Note Card (captures global press offset)
+//---------------------------------------------------------
+@Composable
+fun NoteCard(
+    note: Note,
+    onClick: () -> Unit,
+    onLongPress: (Offset) -> Unit
+) {
     val timeLabel = remember(note.updatedAt) { formatRelativeTime(note.updatedAt) }
     val backgroundColor = if (note.colorLong == 0L) Color(0xFFD3E3FD) else Color(note.colorLong)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(150.dp)
-            .shadow(6.dp, RoundedCornerShape(16.dp))
-            .background(backgroundColor.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-            .clickable { onClick() }
+            .height(175.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = { offset ->
+                        onLongPress(offset)
+                    }
+                )
+            }
+            .background(backgroundColor.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
             .padding(14.dp)
     ) {
         Column(Modifier.fillMaxSize()) {

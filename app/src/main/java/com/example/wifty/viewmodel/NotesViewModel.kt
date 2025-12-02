@@ -98,4 +98,11 @@ class NotesViewModel(
         val updatedContent = note.content + "\n[File Attached: $uri]"
         updateNote(note.copy(content = updatedContent))
     }
+
+    fun moveNoteToFolder(noteId: String, folderId: String?) {
+        viewModelScope.launch {
+            repo.moveNoteToFolder(noteId, folderId)
+            refreshNotes()
+        }
+    }
 }

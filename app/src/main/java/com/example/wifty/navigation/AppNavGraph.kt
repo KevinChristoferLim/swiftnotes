@@ -58,12 +58,14 @@ fun AppNavGraph(
         composable(Routes.NotesList.route) {
             NotesListScreen(
                 viewModel = notesVM,
+                folderViewModel = folderVM,
                 onCreateNewNote = {
                     navController.navigate(Routes.CreateNote.route)
                 },
                 onOpenNote = { id: String ->
                     navController.navigate(Routes.ViewNote.pass(id))
                 },
+
                 onOpenFolders = {
                     navController.navigate(Routes.FolderList.route)
                 },
