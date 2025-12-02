@@ -14,9 +14,21 @@
         // simple in-memory map: id -> note
         private val notes = linkedMapOf<String, Note>()
 
-        suspend fun createNote(initialTitle: String = "", initialContent: String = "", colorLong: Long = 0xFF4B63FFu.toLong()): Note {
+        suspend fun createNote(
+            initialTitle: String = "",
+            initialContent: String = "",
+            colorLong: Long = 0xFF4B63FFu.toLong(),
+            folderId: String? = null
+        ): Note {
             val id = UUID.randomUUID().toString()
-            val note = Note(id = id, title = initialTitle, content = initialContent, colorLong = colorLong)
+            val note = Note(
+                id = id,
+                title = initialTitle,
+                content = initialContent,
+                colorLong = colorLong,
+                folderId = folderId
+            )
+
             mutex.withLock { notes[id] = note }
             return note
         }
@@ -45,11 +57,11 @@
             }
         }
 
-        suspend fun moveNoteToFolder(noteId: String, folderId: String?) {
+        suspend fun moveNoteToFolder(noteId: String, newfolderId: String?) {
             mutex.withLock {
                 val note = notes[noteId] ?: return
                 val updated = note.copy(
-                    folderId = folderId,
+                    folderId = newfolderId,
                     updatedAt = System.currentTimeMillis()
                 )
                 notes[noteId] = updated

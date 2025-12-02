@@ -113,39 +113,47 @@ fun deleteChecklistOnBackspacePure(
     blockFieldValues: List<TextFieldValue>,
     checklistIndex: Int
 ): EditResult {
+
     val idx = checklistIndex.coerceIn(0, blocks.lastIndex)
+
+    // Not a checklist? Return unchanged
     if (blocks[idx] !is Block.Checklist) {
         return EditResult(blocks, blockFieldValues, checklistIndex, 0)
     }
 
+    // Remove the checklist block
     val newBlocks = blocks.toMutableList()
     newBlocks.removeAt(idx)
 
-    // Remove immediate following "\n" text placeholder if present
-    if (idx < newBlocks.size && newBlocks[idx] is Block.Text && (newBlocks[idx] as Block.Text).text == "\n") {
-        newBlocks.removeAt(idx)
-    }
-
+    // If everything is gone → insert an empty text block
     if (newBlocks.isEmpty()) {
-        val resultBlocks = listOf(Block.Text(""))
-        val fvs = syncFieldValuesFromBlocksPure(resultBlocks)
-        return EditResult(resultBlocks, fvs, 0, 0)
+        val single = listOf(Block.Text(""))
+        val fvs = syncFieldValuesFromBlocksPure(single)
+        return EditResult(single, fvs, 0, 0)
     }
 
-    val targetIndex = when {
-        idx - 1 >= 0 -> (idx - 1).coerceAtMost(newBlocks.lastIndex)
-        else -> 0
-    }
+    // Decide which block to focus after deletion:
+    val targetIndex =
+        if (idx - 1 >= 0) idx - 1      // focus previous block
+        else 0                         // otherwise first block
 
     val fvs = syncFieldValuesFromBlocksPure(newBlocks)
-    val targetBlock = newBlocks[targetIndex]
-    val cursor = when (targetBlock) {
-        is Block.Text -> (targetBlock.text.length)
-        is Block.Checklist -> (targetBlock.text.length)
+
+    // Compute cursor offset in the target block
+    val target = newBlocks[targetIndex]
+    val cursorPos = when (target) {
+        is Block.Text -> target.text.length
+        is Block.Checklist -> target.text.length
     }
 
-    return EditResult(newBlocks, fvs, targetIndex, cursor)
+    return EditResult(
+        blocks = newBlocks.toList(),   // ensure immutable
+        fieldValues = fvs,
+        focusedIndex = targetIndex,
+        focusedCursorOffset = cursorPos
+    )
 }
+
 
 /**
  * Handle Enter pressed inside a checklist:

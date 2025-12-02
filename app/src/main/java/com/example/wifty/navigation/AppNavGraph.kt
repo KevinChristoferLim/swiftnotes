@@ -100,6 +100,7 @@ fun AppNavGraph(
         // ---- FOLDER LIST ----
         composable(Routes.FolderList.route) {
             FolderListScreen(
+                notesVM = notesVM,
                 viewModel = folderVM,
                 onCreateFolder = { navController.navigate(Routes.CreateFolder.route) },
                 onOpenFolder = { folderId: String ->
@@ -124,7 +125,10 @@ fun AppNavGraph(
                 folderId = id,
                 folderVM = folderVM,
                 notesVM = notesVM,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onOpenNote = { noteId ->
+                    navController.navigate(Routes.ViewNote.pass(noteId))
+                }
             )
         }
     }

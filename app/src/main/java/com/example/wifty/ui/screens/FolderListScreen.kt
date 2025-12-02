@@ -2,6 +2,7 @@ package com.example.wifty.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,38 +11,47 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.Popup
 import com.example.wifty.viewmodel.FolderViewModel
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
+import com.example.wifty.viewmodel.NotesViewModel
+import kotlin.math.absoluteValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolderListScreen(
     viewModel: FolderViewModel,
+    notesVM: NotesViewModel,
     onCreateFolder: () -> Unit,
     onOpenFolder: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     val folders by viewModel.folders.collectAsState()
+    val notes by notesVM.notes.collectAsState()
 
-    // STATE for search
+    // Search
     var searchQuery by remember { mutableStateOf("") }
-
-    // Filter folders by title
     val filteredFolders = folders.filter {
         it.title.contains(searchQuery, ignoreCase = true)
     }
+
+    // Popup state
+    var popupVisible by remember { mutableStateOf(false) }
+    var popupOffset by remember { mutableStateOf(Offset.Zero) }
+    var selectedFolderId by remember { mutableStateOf<String?>(null) }
+
+    // Dialogs
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var showDescriptionDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -60,8 +70,6 @@ fun FolderListScreen(
                 }
             )
         },
-
-        // FAB in bottom-right
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onCreateFolder,
@@ -79,7 +87,7 @@ fun FolderListScreen(
                 .padding(horizontal = 16.dp)
         ) {
 
-            // 🔍 Search Bar
+            // Search bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -90,28 +98,119 @@ fun FolderListScreen(
                 singleLine = true
             )
 
-            // Folder list
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(filteredFolders) { folder ->
+
+                    // calculate notes inside folder
+                    val noteCount = notes.count { it.folderId == folder.id }
+
                     FolderCard(
                         name = folder.title,
                         hashtag = folder.tag,
-                        notesCount = 0,
+                        notesCount = noteCount,
                         gradientColors = listOf(
                             Color(folder.colorLong),
                             Color(folder.colorLong).copy(alpha = 0.7f)
                         ),
-                        onClick = { onOpenFolder(folder.id) }
+                        onClick = { onOpenFolder(folder.id) },
+                        onLongPress = { pressOffset ->
+                            selectedFolderId = folder.id
+                            popupOffset = pressOffset
+                            popupVisible = true
+                        }
                     )
                 }
             }
         }
     }
-}
 
+    // ------------------------------
+    // Popup Menu
+    // ------------------------------
+    if (popupVisible && selectedFolderId != null) {
+        Popup(
+            alignment = Alignment.TopStart,
+            offset = IntOffset(popupOffset.x.toInt(), popupOffset.y.toInt()),
+            onDismissRequest = { popupVisible = false }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 6.dp,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(
+                    Modifier
+                        .width(160.dp)
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        "Rename",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                popupVisible = false
+                                showRenameDialog = true
+                            }
+                            .padding(12.dp)
+                    )
+
+                    Text(
+                        "Add description",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                popupVisible = false
+                                showDescriptionDialog = true
+                            }
+                            .padding(12.dp)
+                    )
+
+                    Text(
+                        "Add note",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                popupVisible = false
+                                selectedFolderId?.let { id ->
+                                    notesVM.createNoteInFolder(id)
+                                }
+                            }
+                            .padding(12.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    // ------------------------------
+    // Rename Dialog
+    // ------------------------------
+    if (showRenameDialog && selectedFolderId != null) {
+        RenameFolderDialog(
+            onDismiss = { showRenameDialog = false },
+            onConfirm = { newName ->
+                viewModel.renameFolder(selectedFolderId!!, newName)
+                showRenameDialog = false
+            }
+        )
+    }
+
+    // ------------------------------
+    // Description Dialog
+    // ------------------------------
+    if (showDescriptionDialog && selectedFolderId != null) {
+        DescriptionFolderDialog(
+            onDismiss = { showDescriptionDialog = false },
+            onConfirm = { newDesc ->
+                viewModel.updateFolderDescription(selectedFolderId!!, newDesc)
+                showDescriptionDialog = false
+            }
+        )
+    }
+}
 
 @Composable
 fun FolderCard(
@@ -119,17 +218,23 @@ fun FolderCard(
     hashtag: String,
     notesCount: Int,
     gradientColors: List<Color>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongPress: (Offset) -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = { offset -> onLongPress(offset) }
+                )
+            }
             .background(
-                brush = Brush.verticalGradient(colors = gradientColors),
+                brush = Brush.verticalGradient(gradientColors),
                 shape = RoundedCornerShape(20.dp)
             )
-            .clickable { onClick() }
             .padding(20.dp)
     ) {
         Column(modifier = Modifier.align(Alignment.TopStart)) {
@@ -147,16 +252,89 @@ fun FolderCard(
     }
 }
 
-fun generateGradient(seed: String): List<Color> {
-    val index = (seed.hashCode().absoluteValue % 4)
+// ------------------------------
+// Dialog Components
+// ------------------------------
 
-    return when (index) {
-        0 -> listOf(Color(0xFF74EBD5), Color(0xFFACB6E5))   // blue-purple
-        1 -> listOf(Color(0xFFFF9A9E), Color(0xFFFAD0C4))   // red-pink
-        2 -> listOf(Color(0xFFAAF683), Color(0xFF00CDAC))   // green-teal
-        else -> listOf(Color(0xFFFFF6B7), Color(0xFFF6416C)) // yellow-red
+@Composable
+fun RenameFolderDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 8.dp
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Rename Folder", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    placeholder = { Text("New name") }
+                )
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = { onConfirm(text) }) { Text("Save") }
+                }
+            }
+        }
     }
 }
 
-private val Int.absoluteValue: Int
-    get() = if (this < 0) -this else this
+@Composable
+fun DescriptionFolderDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            tonalElevation = 8.dp
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Folder Description", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    placeholder = { Text("Description") }
+                )
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = { onConfirm(text) }) { Text("Save") }
+                }
+            }
+        }
+    }
+}
+
+fun generateGradient(seed: String): List<Color> {
+    val index = (seed.hashCode().absoluteValue % 4)
+    return when (index) {
+        0 -> listOf(Color(0xFF74EBD5), Color(0xFFACB6E5))
+        1 -> listOf(Color(0xFFFF9A9E), Color(0xFFFAD0C4))
+        2 -> listOf(Color(0xFFAAF683), Color(0xFF00CDAC))
+        else -> listOf(Color(0xFFFFF6B7), Color(0xFFF6416C))
+    }
+}

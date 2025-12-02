@@ -28,7 +28,8 @@ fun ViewFolderScreen(
     folderId: String,
     folderVM: FolderViewModel,
     notesVM: NotesViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenNote: (String) -> Unit
 ) {
     // Local folder state — will remain null until you wire a real lookup
     var folderState by remember { mutableStateOf<Folder?>(null) }
@@ -36,21 +37,10 @@ fun ViewFolderScreen(
     // Subscribe to notes list from NotesViewModel
     val notes by notesVM.notes.collectAsState()
 
-    val filteredNotes = remember(notes, folderState, folderId) {
-        val tag = folderState?.tag?.ifBlank { null }
-        if (tag != null) {
-            notes.filter { n ->
-                n.title.contains(tag, ignoreCase = true)
-                        || n.content.contains(tag, ignoreCase = true)
-            }
-        } else {
-            val byId = notes.filter { n ->
-                n.title.contains(folderId, ignoreCase = true)
-                        || n.content.contains(folderId, ignoreCase = true)
-            }
-            if (byId.isNotEmpty()) byId else notes
-        }
+    val filteredNotes = remember(notes, folderId) {
+        notes.filter { it.folderId == folderId }
     }
+
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -130,7 +120,10 @@ fun ViewFolderScreen(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(filteredNotes) { note ->
-                        FolderNoteRow(note = note, onClick = { /* navigate to note if needed */ })
+                        FolderNoteRow(
+                            note = note,
+                            onClick = { onOpenNote(note.id) }
+                        )
                     }
                 }
             }

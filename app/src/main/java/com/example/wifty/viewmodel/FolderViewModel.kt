@@ -46,4 +46,19 @@ class FolderViewModel(
             repo.deleteFolder(id)
         }
     }
+
+    fun renameFolder(folderId: String, newTitle: String) {
+        viewModelScope.launch {
+            repo.updateFolderTitle(folderId, newTitle)
+        }
+    }
+
+    fun updateFolderDescription(folderId: String, newDescription: String) {
+        viewModelScope.launch {
+            repo.updateFolderDescription(folderId, newDescription)
+        }
+    }
+
+
+
 }
