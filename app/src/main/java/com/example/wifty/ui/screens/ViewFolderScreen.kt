@@ -53,6 +53,7 @@ fun ViewFolderScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
