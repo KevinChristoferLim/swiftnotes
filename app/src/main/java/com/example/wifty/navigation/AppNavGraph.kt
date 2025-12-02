@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.wifty.ui.screens.AccountManagement.EditProfileScreen
 import com.example.wifty.ui.screens.AccountManagement.ProfileScreen
 import com.example.wifty.ui.screens.login.AuthScreen
 import com.example.wifty.ui.screens.*
@@ -27,13 +28,14 @@ fun AppNavGraph(
         composable(Routes.CoverView.route) {
             CoverViewScreen(
                 onContinue = {
-                    navController.navigate(Routes.NotesList.route) {
+                    navController.navigate(Routes.Login.route) {
                         popUpTo(Routes.CoverView.route) { inclusive = true }
                     }
                 }
             )
         }
 
+        // ---- Login Screen ----
         composable(Routes.Login.route) {
             AuthScreen(
                 onLoginSuccess = {
@@ -44,18 +46,31 @@ fun AppNavGraph(
             )
         }
 
-
+        // ---- Profile Screen ----
         composable(Routes.Profile.route) {
             ProfileScreen(
                 onBack = { navController.popBackStack() },
-                onLogout = { /* mock logout: navController.navigate(Routes.Login.route) */ },
-                onDeleteConfirm = { /* handle mock delete */ }
+                onNavigateToEditProfile = {
+                    navController.navigate(Routes.EditProfile.route)
+                },
+                onLogout = {
+                    navController.navigate(Routes.Login.route) {
+                        popUpTo(Routes.NotesList.route) { inclusive = true }
+                    }
+                }
             )
         }
 
+        // ---- Edit Profile Screen ----
+        composable(Routes.EditProfile.route) {
+            EditProfileScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
 
         // ---- NOTES LIST ----
         composable(Routes.NotesList.route) {
+            // 👇 Fixed: Added folderViewModel back because your screen expects it
             NotesListScreen(
                 viewModel = notesVM,
                 folderViewModel = folderVM,
@@ -65,7 +80,6 @@ fun AppNavGraph(
                 onOpenNote = { id: String ->
                     navController.navigate(Routes.ViewNote.pass(id))
                 },
-
                 onOpenFolders = {
                     navController.navigate(Routes.FolderList.route)
                 },
