@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Warning // Imported for the warning icon
 import androidx.compose.material.icons.outlined.ExitToApp
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
@@ -32,12 +33,14 @@ import com.example.wifty.R
 @Composable
 fun ProfileScreen(
     onBack: () -> Unit,
-    onNavigateToEditProfile: () -> Unit, // New callback
-    onLogout: () -> Unit
+    onNavigateToEditProfile: () -> Unit,
+    onLogout: () -> Unit,
+    onNavigateToChangePassword: () -> Unit // 👈 NEW CALLBACK ADDED
 ) {
     // State for Dialogs and Sheets
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showNotificationSheet by remember { mutableStateOf(false) }
+    var showPasswordWarningDialog by remember { mutableStateOf(false) } // 👈 NEW STATE
 
     Scaffold(
         topBar = {
@@ -93,8 +96,12 @@ fun ProfileScreen(
             Spacer(Modifier.height(40.dp))
 
             // --- 2. SETTINGS LIST ---
-            // Re-using a local helper function for cleaner code
-            ProfileMenuItem(Icons.Outlined.Lock, "Change Password") { /* Handle Password */ }
+
+            // 👇 UPDATED: Change Password clicks open the Warning Dialog
+            ProfileMenuItem(Icons.Outlined.Lock, "Change Password") {
+                showPasswordWarningDialog = true
+            }
+
             ProfileMenuItem(Icons.Outlined.Info, "Text Size") { /* Handle Text Size */ }
 
             // Notification Item -> Opens Sheet
@@ -159,7 +166,74 @@ fun ProfileScreen(
         }
     }
 
-    // --- 4. NOTIFICATION BOTTOM SHEET ---
+    // --- 4. PASSWORD WARNING DIALOG (NEW) ---
+    if (showPasswordWarningDialog) {
+        Dialog(onDismissRequest = { showPasswordWarningDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Yellow Circle with Warning Icon
+                    Box(
+                        modifier = Modifier
+                            .size(50.dp)
+                            .background(Color(0xFFFFF3E0), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = "Warning",
+                            tint = Color(0xFFFF9800)
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    Text("Password Change", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Spacer(Modifier.height(8.dp))
+
+                    Text(
+                        "Changing your password means your old password will be replaced, and you will need to sign in again. Do you agree?",
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        OutlinedButton(
+                            onClick = { showPasswordWarningDialog = false },
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Cancel", color = Color(0xFF6750A4))
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Button(
+                            onClick = {
+                                showPasswordWarningDialog = false
+                                onNavigateToChangePassword() // Navigate to ForgotPassword Screen
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Yes")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- 5. NOTIFICATION BOTTOM SHEET ---
     if (showNotificationSheet) {
         ModalBottomSheet(
             onDismissRequest = { showNotificationSheet = false },

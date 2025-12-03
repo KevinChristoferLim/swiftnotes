@@ -6,6 +6,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.wifty.ui.screens.AccountManagement.EditProfileScreen
 import com.example.wifty.ui.screens.AccountManagement.ProfileScreen
+import com.example.wifty.ui.screens.AccountManagement.OTP.ForgotPasswordScreen
+import com.example.wifty.ui.screens.AccountManagement.OTP.OtpVerificationScreen
+import com.example.wifty.ui.screens.AccountManagement.OTP.CreateNewPasswordScreen
 import com.example.wifty.ui.screens.login.AuthScreen
 import com.example.wifty.ui.screens.*
 import com.example.wifty.ui.screens.notes.*
@@ -42,6 +45,10 @@ fun AppNavGraph(
                     navController.navigate(Routes.NotesList.route) {
                         popUpTo(Routes.Login.route) { inclusive = true }
                     }
+                },
+                // 👇 THIS IS THE NEW PART THAT MAKES IT WORK
+                onNavigateToForgotPassword = {
+                    navController.navigate(Routes.ForgotPassword.route)
                 }
             )
         }
@@ -57,6 +64,9 @@ fun AppNavGraph(
                     navController.navigate(Routes.Login.route) {
                         popUpTo(Routes.NotesList.route) { inclusive = true }
                     }
+                },
+                onNavigateToChangePassword = {
+                    navController.navigate(Routes.ForgotPassword.route)
                 }
             )
         }
@@ -68,9 +78,44 @@ fun AppNavGraph(
             )
         }
 
+        // ================= OTP / PASSWORD FLOW =================
+
+        // 1. Forgot Password (Enter Email)
+        composable(Routes.ForgotPassword.route) {
+            ForgotPasswordScreen(
+                onBack = { navController.popBackStack() },
+                onSubmit = {
+                    navController.navigate(Routes.OtpVerification.route)
+                }
+            )
+        }
+
+        // 2. OTP Verification (Enter Code)
+        composable(Routes.OtpVerification.route) {
+            OtpVerificationScreen(
+                onBack = { navController.popBackStack() },
+                onSubmit = {
+                    navController.navigate(Routes.CreateNewPassword.route)
+                }
+            )
+        }
+
+        // 3. Create New Password (Reset & Success)
+        composable(Routes.CreateNewPassword.route) {
+            CreateNewPasswordScreen(
+                onBack = { navController.popBackStack() },
+                onSuccess = {
+                    navController.navigate(Routes.Login.route) {
+                        popUpTo(Routes.NotesList.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // =======================================================
+
         // ---- NOTES LIST ----
         composable(Routes.NotesList.route) {
-            // 👇 Fixed: Added folderViewModel back because your screen expects it
             NotesListScreen(
                 viewModel = notesVM,
                 folderViewModel = folderVM,

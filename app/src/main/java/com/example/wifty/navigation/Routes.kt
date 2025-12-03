@@ -8,7 +8,6 @@ sealed class Routes(val route: String) {
 
     object Profile : Routes("profile")
 
-    // 👇 ADD THIS LINE HERE
     object EditProfile : Routes("edit_profile")
 
     object NotesList : Routes("notes_list")
@@ -24,4 +23,9 @@ sealed class Routes(val route: String) {
     object ViewFolder : Routes("view_folder/{folderId}") {
         fun pass(folderId: String) = "view_folder/$folderId"
     }
+
+    // 👇 ADDED THESE FOR THE OTP FLOW
+    object ForgotPassword : Routes("forgot_password")
+    object OtpVerification : Routes("otp_verification")
+    object CreateNewPassword : Routes("create_new_password")
 }

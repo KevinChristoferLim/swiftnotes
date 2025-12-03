@@ -19,7 +19,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun AuthScreen(onLoginSuccess: () -> Unit) {
+fun AuthScreen(
+    onLoginSuccess: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit // 👈 NEW CALLBACK ADDED
+) {
     var isLogin by remember { mutableStateOf(true) }
 
     Column(
@@ -45,7 +48,7 @@ fun AuthScreen(onLoginSuccess: () -> Unit) {
         Spacer(modifier = Modifier.height(40.dp))
 
         if (isLogin)
-            LoginUI(onLoginSuccess)
+            LoginUI(onLoginSuccess, onNavigateToForgotPassword) // 👈 Pass it here
         else
             SignUpUI()
     }
@@ -66,7 +69,10 @@ fun ToggleTab(text: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun LoginUI(onLoginSuccess: () -> Unit) {
+fun LoginUI(
+    onLoginSuccess: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit // 👈 NEW PARAMETER
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
 
         Text("Let's Login", fontSize = 28.sp, fontWeight = FontWeight.Bold)
@@ -81,7 +87,7 @@ fun LoginUI(onLoginSuccess: () -> Unit) {
             text = "Forgot Password?",
             modifier = Modifier
                 .padding(vertical = 8.dp)
-                .clickable {},
+                .clickable { onNavigateToForgotPassword() }, // 👈 CONNECTED HERE
             color = Color(0xFF6B4EFF),
             fontSize = 13.sp
         )
