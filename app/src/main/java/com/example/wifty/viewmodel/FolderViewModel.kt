@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlinx.coroutines.flow.update
 
 class FolderViewModel(
     private val repo: FolderRepository = FolderRepository()
@@ -59,6 +60,23 @@ class FolderViewModel(
         }
     }
 
+    fun addNoteToFolder(folderId: String, noteId: String) {
+        _folders.update { currentFolders ->
+            currentFolders.map { folder ->
+                if (folder.id == folderId) {
+                    folder.copy(noteIds = folder.noteIds + noteId)
+                } else folder
+            }
+        }
+    }
 
-
+    fun removeNoteFromFolder(folderId: String, noteId: String) {
+        _folders.update { currentFolders ->
+            currentFolders.map { folder ->
+                if (folder.id == folderId) {
+                    folder.copy(noteIds = folder.noteIds - noteId)
+                } else folder
+            }
+        }
+    }
 }

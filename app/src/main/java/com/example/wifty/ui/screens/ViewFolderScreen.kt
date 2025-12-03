@@ -20,6 +20,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.text.font.FontWeight
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,16 +32,13 @@ fun ViewFolderScreen(
     onBack: () -> Unit,
     onOpenNote: (String) -> Unit
 ) {
-    // Local folder state — will remain null until you wire a real lookup
-    var folderState by remember { mutableStateOf<Folder?>(null) }
+    val folders by folderVM.folders.collectAsState()
+    val folderState = remember(folders, folderId) { folders.find { it.id == folderId } }
 
-    // Subscribe to notes list from NotesViewModel
     val notes by notesVM.notes.collectAsState()
-
-    val filteredNotes = remember(notes, folderId) {
-        notes.filter { it.folderId == folderId }
+    val filteredNotes = remember(notes, folderState) {
+        folderState?.let { folder -> notes.filter { folder.noteIds.contains(it.id) } } ?: emptyList()
     }
-
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -50,12 +48,13 @@ fun ViewFolderScreen(
                     Column {
                         Text(
                             folderState?.title ?: "Folder",
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
                         )
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            folderState?.tag ?: "ID: ${folderId.take(8)}",
-                            style = MaterialTheme.typography.bodySmall,
+                            folderState?.tag ?: "Tag: —",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -64,66 +63,83 @@ fun ViewFolderScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                },
-                actions = {
-                    // placeholder for actions (edit folder / delete / more)
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { /* TODO: add new note to this folder */ },
+                containerColor = Color(0xFF4B63FF)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Note", tint = Color.White)
+            }
         }
-    ) { inner ->
-
+    ) { innerPadding ->
         Column(
             modifier = Modifier
-                .padding(inner)
+                .padding(innerPadding)
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
 
-            // Header area that uses folder color if available
-            Box(
+            // Folder Header Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp)
-                    .background(
-                        color = (folderState?.colorLong?.let { Color(it) } ?: Color(0xFFDDDDFF)),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .padding(16.dp)
             ) {
-                Column(modifier = Modifier.align(Alignment.TopStart)) {
+                Box(
+                    modifier = Modifier
+                        .background(folderState?.colorLong?.let { Color(it) } ?: Color(0xFFDDEEFF))
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    Column(modifier = Modifier.align(Alignment.CenterStart)) {
+                        Text(
+                            folderState?.title ?: "Folder",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            folderState?.tag ?: "Tag: —",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "${filteredNotes.size} notes",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Notes section
+            if (filteredNotes.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = folderState?.title ?: "Folder",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = folderState?.tag ?: "Tag: —",
+                        "No notes in this folder yet.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Notes",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (filteredNotes.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No notes in this folder yet.")
-                }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     items(filteredNotes) { note ->
-                        FolderNoteRow(
-                            note = note,
-                            onClick = { onOpenNote(note.id) }
-                        )
+                        FolderNoteRow(note, onClick = { onOpenNote(note.id) })
                     }
                 }
             }
@@ -131,33 +147,34 @@ fun ViewFolderScreen(
     }
 }
 
-// Simple row representation for a note inside a folder view.
+// Cleaner note row
 @Composable
 private fun FolderNoteRow(note: Note, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(note.title.ifBlank { "(Untitled)" }, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = note.content.take(120).let { if (note.content.length > 120) "$it..." else it },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    SimpleDateFormat("MMM dd", Locale.getDefault()).format(Date(note.updatedAt)),
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                note.title.ifBlank { "(Untitled)" },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = note.content.take(120).let { if (note.content.length > 120) "$it..." else it },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(note.updatedAt)),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
         }
     }
 }

@@ -102,39 +102,30 @@ fun NotesListScreen(
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.End // align everything to the right
                 ) {
+                    Icon(Icons.Default.Search, contentDescription = "Search")
+                    Spacer(Modifier.width(18.dp))
+
                     Icon(
-                        Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        modifier = Modifier.size(26.dp)
+                        imageVector = Icons.Default.AccountBox,
+                        contentDescription = "Folders",
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clickable { onOpenFolders() }
                     )
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.width(18.dp))
 
-                        Icon(Icons.Default.Search, contentDescription = "Search")
-                        Spacer(Modifier.width(18.dp))
-
-                        Icon(
-                            imageVector = Icons.Default.AccountBox,
-                            contentDescription = "Folders",
-                            modifier = Modifier
-                                .size(26.dp)
-                                .clickable { onOpenFolders() }
-                        )
-
-                        Spacer(Modifier.width(18.dp))
-
-                        Image(
-                            painter = painterResource(id = R.drawable.sample_profile),
-                            contentDescription = "Profile",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .clickable { onOpenProfile() }
-                        )
-                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.sample_profile),
+                        contentDescription = "Profile",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .clickable { onOpenProfile() }
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -227,10 +218,9 @@ fun NotesListScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            viewModel.moveNoteToFolder(
-                                                selectedNote!!.id,
-                                                folder.id
-                                            )
+                                            selectedNote?.let { note ->
+                                                folderViewModel.addNoteToFolder(folder.id, note.id)
+                                            }
                                             showMoveDialog = false
                                         }
                                         .padding(vertical = 12.dp)

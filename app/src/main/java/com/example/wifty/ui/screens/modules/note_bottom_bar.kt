@@ -9,17 +9,17 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 /**
  * Bottom toolbar composable: contains icon actions (image, checklist, file, more).
@@ -75,51 +75,40 @@ fun FloatingMoreMenu(
     onCollaboratorClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         modifier = modifier
-            .background(
-                brush = Brush.verticalGradient(listOf(Color(0xFFEAE2FF), Color(0xFFF7F1FF))),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(12.dp)
+            .wrapContentSize()
+            .background(Color.Transparent)
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onDeleteClick() }
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(vertical = 8.dp)
+                .width(180.dp)
         ) {
-            Icon(Icons.Default.Delete, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Delete")
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onCopyClick() }
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Info, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Copy")
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onCollaboratorClick() }
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Share, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Collaborator")
+            MenuItem(icon = Icons.Default.Delete, text = "Delete", onClick = onDeleteClick)
+            MenuItem(icon = Icons.Default.Info, text = "Copy", onClick = onCopyClick)
+            MenuItem(icon = Icons.Default.Share, text = "Collaborators", onClick = onCollaboratorClick)
         }
     }
 }
+
+@Composable
+private fun MenuItem(icon: ImageVector, text: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 12.dp, horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = text, tint = Color.Black)
+        Spacer(Modifier.width(12.dp))
+        Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.Black)
+    }
+}
+
 
 /**
  * Delete confirmation dialog; self-contained and simple.

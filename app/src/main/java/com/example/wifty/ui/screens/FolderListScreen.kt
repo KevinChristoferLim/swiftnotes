@@ -110,7 +110,7 @@ fun FolderListScreen(
                     FolderCard(
                         name = folder.title,
                         hashtag = folder.tag,
-                        notesCount = noteCount,
+                        notesCount = folder.noteIds.size,
                         gradientColors = listOf(
                             Color(folder.colorLong),
                             Color(folder.colorLong).copy(alpha = 0.7f)
@@ -252,9 +252,7 @@ fun FolderCard(
     }
 }
 
-// ------------------------------
 // Dialog Components
-// ------------------------------
 
 @Composable
 fun RenameFolderDialog(
