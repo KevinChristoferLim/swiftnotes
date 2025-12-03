@@ -4,9 +4,12 @@ sealed class Routes(val route: String) {
 
     object CoverView : Routes("cover_view")
 
+    object Login : Routes("login")
+
     object Profile : Routes("profile")
 
-    object Login : Routes("login")
+    // 👇 ADD THIS LINE HERE
+    object EditProfile : Routes("edit_profile")
 
     object NotesList : Routes("notes_list")
     object CreateNote : Routes("create_note")
