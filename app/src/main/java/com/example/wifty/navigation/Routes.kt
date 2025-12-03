@@ -24,6 +24,8 @@ sealed class Routes(val route: String) {
         fun pass(folderId: String) = "view_folder/$folderId"
     }
 
+    object Home : Routes("home")
+
     // 👇 ADDED THESE FOR THE OTP FLOW
     object ForgotPassword : Routes("forgot_password")
     object OtpVerification : Routes("otp_verification")

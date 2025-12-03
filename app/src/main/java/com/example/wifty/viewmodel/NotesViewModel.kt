@@ -106,23 +106,21 @@ class NotesViewModel(
         }
     }
 
-    fun createNoteInFolder(
-        folderId: String,
-        onCreated: (String) -> Unit = {}
-    ) {
+    fun createNoteInFolder(folderId: String, onCreated: (String) -> Unit = {}) {
         viewModelScope.launch {
+
             val note = repo.createNote(
                 initialTitle = "",
                 initialContent = "",
-                colorLong = 0xFF4B63FF,
-            ).copy(folderId = folderId)
+                colorLong = 0xFF4B63FFu.toLong(),
+                folderId = folderId           // <--- THIS was missing!
+            )
 
-            repo.updateNote(note)
             refreshNotes()
-
             onCreated(note.id)
         }
     }
+
 
 
 }

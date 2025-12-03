@@ -33,6 +33,7 @@ fun FolderListScreen(
     notesVM: NotesViewModel,
     onCreateFolder: () -> Unit,
     onOpenFolder: (String) -> Unit,
+    onOpenNote: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val folders by viewModel.folders.collectAsState()
@@ -174,8 +175,11 @@ fun FolderListScreen(
                             .fillMaxWidth()
                             .clickable {
                                 popupVisible = false
-                                selectedFolderId?.let { id ->
-                                    notesVM.createNoteInFolder(id)
+                                selectedFolderId?.let { folderId ->
+                                    notesVM.createNoteInFolder(folderId) { newNoteId ->
+                                        viewModel.addNoteToFolder(folderId, newNoteId)
+                                        onOpenNote(newNoteId)
+                                    }
                                 }
                             }
                             .padding(12.dp)
