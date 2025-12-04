@@ -1,9 +1,6 @@
 package com.example.wifty.ui.screens.notes
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -11,31 +8,32 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Popup
-import com.example.wifty.R
 import com.example.wifty.model.Note
+import com.example.wifty.ui.screens.modules.TopNavBar
 import com.example.wifty.viewmodel.FolderViewModel
 import com.example.wifty.viewmodel.NotesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 
-// Helper - Relative time
+// --- Helper: Relative time ---
 fun formatRelativeTime(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
@@ -50,7 +48,7 @@ fun formatRelativeTime(timestamp: Long): String {
     }
 }
 
-// MAIN SCREEN
+// --- Notes Screen ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesListScreen(
@@ -98,39 +96,16 @@ fun NotesListScreen(
                     .padding(16.dp)
             ) {
 
-                // TOP BAR
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End // align everything to the right
-                ) {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
-                    Spacer(Modifier.width(18.dp))
-
-                    Icon(
-                        imageVector = Icons.Default.AccountBox,
-                        contentDescription = "Folders",
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clickable { onOpenFolders() }
-                    )
-
-                    Spacer(Modifier.width(18.dp))
-
-                    Image(
-                        painter = painterResource(id = R.drawable.sample_profile),
-                        contentDescription = "Profile",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .clickable { onOpenProfile() }
-                    )
-                }
+                // --- Modular Top Bar ---
+                TopNavBar(
+                    onSearchClick = { /* TODO: add search */ },
+                    onOpenFolders = onOpenFolders,
+                    onOpenProfile = onOpenProfile
+                )
 
                 Spacer(Modifier.height(16.dp))
 
-                // NOTES GRID
+                // --- Notes Grid ---
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -152,7 +127,7 @@ fun NotesListScreen(
             }
         }
 
-        // POPUP MENU
+        // --- Popup Menu ---
         if (menuExpanded && selectedNote != null) {
             Popup(
                 alignment = Alignment.TopStart,
@@ -195,7 +170,7 @@ fun NotesListScreen(
             }
         }
 
-        // MOVE TO FOLDER DIALOG
+        // --- Move to Folder Dialog ---
         if (showMoveDialog && selectedNote != null) {
             Dialog(onDismissRequest = { showMoveDialog = false }) {
                 Surface(
@@ -250,16 +225,14 @@ fun NotesListScreen(
     }
 }
 
-// NOTE CARD
 @Composable
 fun NoteCard(
     note: Note,
     onClick: () -> Unit,
     onLongPress: (Offset) -> Unit
 ) {
-    val timeLabel = remember(note.updatedAt) { formatRelativeTime(note.updatedAt) }
-    val backgroundColor =
-        if (note.colorLong == 0L) Color(0xFFD3E3FD) else Color(note.colorLong)
+    val timeLabel = remember(note.updatedAt) { com.example.wifty.ui.screens.notes.formatRelativeTime(note.updatedAt) }
+    val backgroundColor = if (note.colorLong == 0L) Color(0xFFD3E3FD) else Color(note.colorLong)
 
     Box(
         modifier = Modifier
