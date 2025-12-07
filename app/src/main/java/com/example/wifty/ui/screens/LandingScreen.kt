@@ -36,7 +36,6 @@ fun LandingScreen(
 
             // --- Top Nav Bar ---
             TopNavBar(
-                onSearchClick = { /* TODO: add search */ },
                 onOpenFolders = onOpenFolders,
                 onOpenProfile = onOpenProfile
             )

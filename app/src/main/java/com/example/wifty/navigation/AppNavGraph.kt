@@ -203,9 +203,8 @@ fun AppNavGraph(
                 folderVM = folderVM,
                 notesVM = notesVM,
                 onBack = { navController.popBackStack() },
-                onOpenNote = { noteId ->
-                    navController.navigate(Routes.ViewNote.pass(noteId))
-                }
+                onOpenNote = { noteId -> navController.navigate(Routes.ViewNote.pass(noteId)) },
+                onOpenProfile = { navController.navigate(Routes.Profile.route) } // <--- pass profile lambda
             )
         }
     }

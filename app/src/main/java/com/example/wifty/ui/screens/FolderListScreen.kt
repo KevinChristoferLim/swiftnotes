@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,8 +21,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.unit.IntOffset
 import com.example.wifty.viewmodel.FolderViewModel
 import com.example.wifty.viewmodel.NotesViewModel
+import com.example.wifty.ui.screens.modules.TopNavBarWithBack
 import kotlin.math.absoluteValue
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,35 +40,38 @@ fun FolderListScreen(
     val folders by viewModel.folders.collectAsState()
     val notes by notesVM.notes.collectAsState()
 
-    // Search
+    // --- Search State ---
     var searchQuery by remember { mutableStateOf("") }
-    val filteredFolders = folders.filter {
-        it.title.contains(searchQuery, ignoreCase = true)
-    }
+    var searchType by remember { mutableStateOf("Folders") }
 
-    // Popup state
+    // --- Popup State ---
     var popupVisible by remember { mutableStateOf(false) }
     var popupOffset by remember { mutableStateOf(Offset.Zero) }
     var selectedFolderId by remember { mutableStateOf<String?>(null) }
-
-    // Dialogs
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDescriptionDialog by remember { mutableStateOf(false) }
+
+    // --- Compute filtered lists directly in composable ---
+    val filteredFolders = if (searchType == "Folders" && searchQuery.isNotBlank()) {
+        folders.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    } else folders
+
+    val filteredNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
+        notes.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    } else notes
 
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("All Folders", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Text("Subfolders", fontSize = 14.sp, color = Color.Gray)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
+            TopNavBarWithBack(
+                title = "All Folders",
+                subtitle = "Subfolders",
+                onBack = onBack,
+                showProfile = true,
+                onOpenProfile = { /* open profile */ },
+                onSearchClick = { query, type ->
+                    searchQuery = query
+                    searchType = "Folders"
                 }
             )
         },
@@ -80,38 +84,23 @@ fun FolderListScreen(
             }
         }
     ) { padding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-
-            // Search bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search folders...") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                singleLine = true
-            )
-
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(filteredFolders) { folder ->
-
-                    // calculate notes inside folder
-                    val noteCount = notes.count { it.folderId == folder.id }
+                items(filteredFolders, key = { it.id }) { folder ->
+                    val noteCount = filteredNotes.count { it.folderId == folder.id }
 
                     FolderCard(
                         name = folder.title,
                         hashtag = folder.tag,
-                        notesCount = folder.noteIds.size,
+                        notesCount = noteCount,
                         gradientColors = listOf(
                             Color(folder.colorLong),
                             Color(folder.colorLong).copy(alpha = 0.7f)
@@ -157,7 +146,6 @@ fun FolderListScreen(
                             }
                             .padding(12.dp)
                     )
-
                     Text(
                         "Add description",
                         modifier = Modifier
@@ -168,7 +156,6 @@ fun FolderListScreen(
                             }
                             .padding(12.dp)
                     )
-
                     Text(
                         "Add note",
                         modifier = Modifier
@@ -216,6 +203,9 @@ fun FolderListScreen(
     }
 }
 
+// ------------------------------
+// FolderCard
+// ------------------------------
 @Composable
 fun FolderCard(
     name: String,
@@ -256,13 +246,11 @@ fun FolderCard(
     }
 }
 
-// Dialog Components
-
+// ------------------------------
+// Dialogs
+// ------------------------------
 @Composable
-fun RenameFolderDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
+fun RenameFolderDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -296,10 +284,7 @@ fun RenameFolderDialog(
 }
 
 @Composable
-fun DescriptionFolderDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
+fun DescriptionFolderDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -331,6 +316,9 @@ fun DescriptionFolderDialog(
     }
 }
 
+// ------------------------------
+// Gradient generator
+// ------------------------------
 fun generateGradient(seed: String): List<Color> {
     val index = (seed.hashCode().absoluteValue % 4)
     return when (index) {

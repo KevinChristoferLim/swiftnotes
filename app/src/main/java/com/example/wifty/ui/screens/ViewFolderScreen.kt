@@ -11,17 +11,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.wifty.model.Folder
 import com.example.wifty.model.Note
 import com.example.wifty.viewmodel.FolderViewModel
 import com.example.wifty.viewmodel.NotesViewModel
+import com.example.wifty.ui.screens.modules.TopNavBarWithBack
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.ui.text.font.FontWeight
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,50 +27,44 @@ fun ViewFolderScreen(
     folderVM: FolderViewModel,
     notesVM: NotesViewModel,
     onBack: () -> Unit,
-    onOpenNote: (String) -> Unit
+    onOpenNote: (String) -> Unit,
+    onOpenProfile: () -> Unit
 ) {
     val folders by folderVM.folders.collectAsState()
-    val folderState = remember(folders, folderId) { folders.find { it.id == folderId } }
+    val folder = remember(folders, folderId) { folders.find { it.id == folderId } }
 
-    val notes by notesVM.notes.collectAsState()
-    val filteredNotes = remember(notes, folderState) {
-        folderState?.let { folder -> notes.filter { folder.noteIds.contains(it.id) } } ?: emptyList()
+    val allNotes by notesVM.notes.collectAsState()
+
+    //  Search state
+    var searchQuery by remember { mutableStateOf("") }
+    var searchType by remember { mutableStateOf("Notes") }
+
+    // Filter notes belonging to this folder
+    val notesInFolder = remember(allNotes, folder) {
+        folder?.let { f -> allNotes.filter { f.noteIds.contains(it.id) } } ?: emptyList()
+    }
+
+    // Apply search filter (same logic as FolderListScreen)
+    val filteredNotes = remember(notesInFolder, searchQuery) {
+        if (searchQuery.isBlank()) notesInFolder
+        else notesInFolder.filter { it.title.contains(searchQuery, ignoreCase = true) }
     }
 
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            folderState?.title ?: "Folder",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            folderState?.tag ?: "Tag: —",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
+            TopNavBarWithBack(
+                title = folder?.title ?: "Folder",
+                subtitle = folder?.tag ?: "Tag: —",
+                onBack = onBack,
+                showProfile = true,
+                onOpenProfile = onOpenProfile,
+                onSearchClick = { query, type ->
+                    searchQuery = query
+                    searchType = "Notes"
                 }
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { /* TODO: add new note to this folder */ },
-                containerColor = Color(0xFF4B63FF)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Note", tint = Color.White)
-            }
-        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -82,7 +73,9 @@ fun ViewFolderScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
 
+            // ---------------------------------------------------
             // Folder Header Card
+            // ---------------------------------------------------
             Card(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -92,20 +85,20 @@ fun ViewFolderScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .background(folderState?.colorLong?.let { Color(it) } ?: Color(0xFFDDEEFF))
+                        .background(folder?.colorLong?.let { Color(it) } ?: Color(0xFFDDEEFF))
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
                     Column(modifier = Modifier.align(Alignment.CenterStart)) {
                         Text(
-                            folderState?.title ?: "Folder",
+                            folder?.title ?: "Folder",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            folderState?.tag ?: "Tag: —",
+                            folder?.tag ?: "Tag: —",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.85f)
                         )
@@ -121,14 +114,16 @@ fun ViewFolderScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // Notes section
+            // ---------------------------------------------------
+            // Notes List (or Empty State)
+            // ---------------------------------------------------
             if (filteredNotes.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "No notes in this folder yet.",
+                        "No notes found.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -139,7 +134,7 @@ fun ViewFolderScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(filteredNotes) { note ->
-                        FolderNoteRow(note, onClick = { onOpenNote(note.id) })
+                        FolderNoteRow(note) { onOpenNote(note.id) }
                     }
                 }
             }
@@ -147,7 +142,6 @@ fun ViewFolderScreen(
     }
 }
 
-// Cleaner note row
 @Composable
 private fun FolderNoteRow(note: Note, onClick: () -> Unit) {
     Card(

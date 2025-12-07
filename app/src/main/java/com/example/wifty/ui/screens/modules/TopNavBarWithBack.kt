@@ -24,7 +24,10 @@ import androidx.compose.ui.res.painterResource
  * and a search function that can be filtered by type ("Notes" or "Folders").
  */
 @Composable
-fun TopNavBar(
+fun TopNavBarWithBack(
+    title: String,
+    subtitle: String? = null,
+    onBack: () -> Unit,
     showProfile: Boolean = false,
     onSearchClick: ((query: String, type: String) -> Unit)? = null, // type = "Notes" or "Folders"
     searchType: String = "Notes", // default type
@@ -41,6 +44,24 @@ fun TopNavBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+
+        // Back button + title
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+
+            Column(modifier = Modifier.padding(start = 8.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                subtitle?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
 
         // Search icon
         onSearchClick?.let { searchCallback ->

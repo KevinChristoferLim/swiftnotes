@@ -62,10 +62,23 @@ fun NotesListScreen(
     val notes by viewModel.notes.collectAsState()
     val folders by folderViewModel.folders.collectAsState()
 
+    // --- Search State ---
+    var searchQuery by remember { mutableStateOf("") }
+    var searchType by remember { mutableStateOf("Notes") }
+
     var menuExpanded by remember { mutableStateOf(false) }
     var selectedNote by remember { mutableStateOf<Note?>(null) }
     var showMoveDialog by remember { mutableStateOf(false) }
     var menuOffset by remember { mutableStateOf(Offset.Zero) }
+
+// --- Compute filtered lists directly in composable ---
+    val filteredFolders = if (searchType == "Folders" && searchQuery.isNotBlank()) {
+        folders.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    } else folders
+
+    val filteredNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
+        notes.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    } else notes
 
     Box(
         modifier = Modifier
@@ -98,7 +111,11 @@ fun NotesListScreen(
 
                 // --- Modular Top Bar ---
                 TopNavBar(
-                    onSearchClick = { /* TODO: add search */ },
+                    searchType = "Notes",
+                    onSearchClick = { query, type ->
+                        searchQuery = query
+                        searchType = "Folders"
+                    },
                     onOpenFolders = onOpenFolders,
                     onOpenProfile = onOpenProfile
                 )
