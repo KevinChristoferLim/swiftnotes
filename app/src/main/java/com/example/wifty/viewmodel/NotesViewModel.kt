@@ -72,7 +72,7 @@ class NotesViewModel(
             if (it.id == noteId) it.copy(isPinned = !it.isPinned) else it
         }
         _notes.value = updatedNotes
-        // You may want to update the repo here if persistence is needed
+        // Add repo update here if persistence needed
     }
 
     fun toggleLock(noteId: String) {
@@ -80,23 +80,42 @@ class NotesViewModel(
             if (it.id == noteId) it.copy(isLocked = !it.isLocked) else it
         }
         _notes.value = updatedNotes
-        // You may want to update the repo here if persistence is needed
+        // Add repo update here if persistence needed
     }
 
     fun setReminder(noteId: String, timeInMillis: Long) {
-        // Implement Reminder logic using WorkManager here
+        // TODO: Implement reminders with WorkManager
     }
+
+    // ----------------------------------------------------
+    //  ATTACHMENTS (no Note model changes required!)
+    // ----------------------------------------------------
 
     fun attachImageToNote(noteId: String, uri: Uri) {
         val note = _notes.value.find { it.id == noteId } ?: return
-        val updatedContent = note.content + "\n[Image Attached: $uri]"
-        updateNote(note.copy(content = updatedContent))
+
+        // append attachment marker into content (ViewNoteScreen parses it)
+        val updatedContent = note.content + "\n[[IMAGE::${uri}]]"
+
+        updateNote(
+            note.copy(
+                content = updatedContent,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
     }
 
     fun attachFileToNote(noteId: String, uri: Uri) {
         val note = _notes.value.find { it.id == noteId } ?: return
-        val updatedContent = note.content + "\n[File Attached: $uri]"
-        updateNote(note.copy(content = updatedContent))
+
+        val updatedContent = note.content + "\n[[FILE::${uri}]]"
+
+        updateNote(
+            note.copy(
+                content = updatedContent,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
     }
 
     fun moveNoteToFolder(noteId: String, folderId: String?) {
@@ -108,19 +127,15 @@ class NotesViewModel(
 
     fun createNoteInFolder(folderId: String, onCreated: (String) -> Unit = {}) {
         viewModelScope.launch {
-
             val note = repo.createNote(
                 initialTitle = "",
                 initialContent = "",
                 colorLong = 0xFF4B63FFu.toLong(),
-                folderId = folderId           // <--- THIS was missing!
+                folderId = folderId
             )
 
             refreshNotes()
             onCreated(note.id)
         }
     }
-
-
-
 }
