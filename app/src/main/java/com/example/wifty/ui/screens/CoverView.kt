@@ -33,7 +33,7 @@ fun CoverViewScreen(onContinue: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("SWIFT", color = Color.White)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("NOTES", color = Color.White)
+            Text("NOTES", color = Color.White)  
         }
     }
 }

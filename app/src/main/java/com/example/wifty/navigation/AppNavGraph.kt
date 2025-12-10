@@ -38,11 +38,24 @@ fun AppNavGraph(
             )
         }
 
+        // ---- Home Screen ----
+        composable(Routes.Home.route) {
+            HomeScreen(
+                notesVM = notesVM,
+                folderVM = folderVM,
+                onCreateNewNote = { navController.navigate(Routes.CreateNote.route) },
+                onOpenNote = { id -> navController.navigate(Routes.ViewNote.pass(id)) },
+                onOpenFolders = { navController.navigate(Routes.FolderList.route) },
+                onOpenProfile = { navController.navigate(Routes.Profile.route) }
+            )
+        }
+
+
         // ---- Login Screen ----
         composable(Routes.Login.route) {
             AuthScreen(
                 onLoginSuccess = {
-                    navController.navigate(Routes.NotesList.route) {
+                    navController.navigate(Routes.Home.route) {
                         popUpTo(Routes.Login.route) { inclusive = true }
                     }
                 },
@@ -140,7 +153,8 @@ fun AppNavGraph(
                 viewModel = notesVM,
                 onCreated = { newId ->
                     navController.navigate(Routes.ViewNote.pass(newId)) {
-                        popUpTo(Routes.NotesList.route)
+                        popUpTo(Routes.CreateNote.route) { inclusive = true
+                        }
                     }
                 }
             )
@@ -162,12 +176,16 @@ fun AppNavGraph(
                 notesVM = notesVM,
                 viewModel = folderVM,
                 onCreateFolder = { navController.navigate(Routes.CreateFolder.route) },
-                onOpenFolder = { folderId: String ->
+                onOpenFolder = { folderId ->
                     navController.navigate(Routes.ViewFolder.pass(folderId))
+                },
+                onOpenNote = { noteId ->
+                    navController.navigate(Routes.ViewNote.pass(noteId))
                 },
                 onBack = { navController.popBackStack() }
             )
         }
+
 
         // ---- CREATE FOLDER ----
         composable(Routes.CreateFolder.route) {
@@ -185,9 +203,8 @@ fun AppNavGraph(
                 folderVM = folderVM,
                 notesVM = notesVM,
                 onBack = { navController.popBackStack() },
-                onOpenNote = { noteId ->
-                    navController.navigate(Routes.ViewNote.pass(noteId))
-                }
+                onOpenNote = { noteId -> navController.navigate(Routes.ViewNote.pass(noteId)) },
+                onOpenProfile = { navController.navigate(Routes.Profile.route) } // <--- pass profile lambda
             )
         }
     }
