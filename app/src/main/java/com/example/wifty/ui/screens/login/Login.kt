@@ -17,11 +17,25 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.example.wifty.data.api.ApiService
+
+class AuthViewModelFactory(private val apiService: ApiService) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return AuthViewModel(apiService) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 @Composable
 fun AuthScreen(
+    authViewModel: AuthViewModel, // Parameter is now accepted
     onLoginSuccess: () -> Unit,
-    onNavigateToForgotPassword: () -> Unit // 👈 NEW CALLBACK ADDED
+    onNavigateToForgotPassword: () -> Unit
 ) {
     var isLogin by remember { mutableStateOf(true) }
 
@@ -47,10 +61,11 @@ fun AuthScreen(
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        if (isLogin)
-            LoginUI(onLoginSuccess, onNavigateToForgotPassword) // 👈 Pass it here
-        else
-            SignUpUI()
+        if (isLogin) {
+            LoginUI(authViewModel, onLoginSuccess, onNavigateToForgotPassword)
+        } else {
+            SignUpUI(authViewModel, onLoginSuccess)
+        }
     }
 }
 
@@ -70,30 +85,46 @@ fun ToggleTab(text: String, selected: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun LoginUI(
+    authViewModel: AuthViewModel,
     onLoginSuccess: () -> Unit,
-    onNavigateToForgotPassword: () -> Unit // 👈 NEW PARAMETER
+    onNavigateToForgotPassword: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    val uiState by authViewModel.uiState.collectAsState()
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
+    if (uiState.isLoggedIn) {
+        onLoginSuccess()
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text("Let's Login", fontSize = 28.sp, fontWeight = FontWeight.Bold)
         Text("And notes your idea", fontSize = 14.sp, color = Color.Gray)
 
         Spacer(modifier = Modifier.height(25.dp))
 
-        LabeledInput(label = "Email Address")
-        LabeledInput(label = "Password", isPassword = true)
+        LabeledInput(label = "Email Address", value = email, onValueChange = { email = it })
+        LabeledInput(label = "Password", value = password, onValueChange = { password = it }, isPassword = true)
 
         Text(
             text = "Forgot Password?",
             modifier = Modifier
                 .padding(vertical = 8.dp)
-                .clickable { onNavigateToForgotPassword() }, // 👈 CONNECTED HERE
+                .clickable { onNavigateToForgotPassword() },
             color = Color(0xFF6B4EFF),
             fontSize = 13.sp
         )
 
-        GradientButton(text = "Login") {
-            onLoginSuccess()
+        if (uiState.isLoading) {
+            CircularProgressIndicator()
+        } else {
+            GradientButton(text = "Login") {
+                authViewModel.login(email, password)
+            }
+        }
+
+        uiState.error?.let {
+            Text(it, color = Color.Red)
         }
 
         Spacer(modifier = Modifier.height(15.dp))
@@ -109,34 +140,64 @@ fun LoginUI(
 }
 
 @Composable
-fun SignUpUI() {
+fun SignUpUI(authViewModel: AuthViewModel, onSignUpSuccess: () -> Unit) {
+    val uiState by authViewModel.uiState.collectAsState()
+    var fullName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    if (uiState.isLoggedIn) {
+        onSignUpSuccess()
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Text("Let's Sign Up", fontSize = 28.sp, fontWeight = FontWeight.Bold)
         Text("And notes your idea", fontSize = 14.sp, color = Color.Gray)
 
         Spacer(modifier = Modifier.height(25.dp))
 
-        LabeledInput(label = "Full Name")
-        LabeledInput(label = "Email Address")
-        LabeledInput(label = "Password", isPassword = true)
-        LabeledInput(label = "Confirm Password", isPassword = true)
+        LabeledInput(label = "Full Name", value = fullName, onValueChange = { fullName = it })
+        LabeledInput(label = "Email Address", value = email, onValueChange = { email = it })
+        LabeledInput(label = "Password", isPassword = true, value = password, onValueChange = { password = it })
+        LabeledInput(label = "Confirm Password", isPassword = true, value = confirmPassword, onValueChange = { confirmPassword = it })
 
         Spacer(modifier = Modifier.height(15.dp))
 
-        GradientButton(text = "Sign Up") {}
+        if (uiState.isLoading) {
+            CircularProgressIndicator()
+        } else {
+            GradientButton(text = "Sign Up") {
+                if (password != confirmPassword) {
+                    error = "Passwords do not match"
+                } else {
+                    error = null
+                    authViewModel.signUp(fullName, email, password, confirmPassword)
+                }
+            }
+        }
+
+        val displayError = error ?: uiState.error
+        displayError?.let {
+            Text(it, color = Color.Red)
+        }
     }
 }
 
 @Composable
-fun LabeledInput(label: String, isPassword: Boolean = false) {
-    var value by remember { mutableStateOf("") }
-
+fun LabeledInput(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    isPassword: Boolean = false
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         Spacer(modifier = Modifier.height(5.dp))
         OutlinedTextField(
             value = value,
-            onValueChange = { value = it },
+            onValueChange = onValueChange,
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,

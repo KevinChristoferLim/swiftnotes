@@ -5,10 +5,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 
 /**
  * Pure editor helpers for checklist insertion / deletion / splitting behaviour.
- *
- * These functions accept the current lists and indices and return a data class with
- * the updated lists and focus/selection targets. This style keeps the logic testable
- * and easy to call from a Composable's stateful scope.
  */
 
 /** Result returned after performing an edit operation. */
@@ -19,23 +15,22 @@ data class EditResult(
     val focusedCursorOffset: Int
 )
 
-/** Sync TextFieldValue list to match blocks; selection default placed at end for new checklist. */
+/** Sync TextFieldValue list to match blocks; always returns a valid TextFieldValue per block. */
 fun syncFieldValuesFromBlocksPure(currentBlocks: List<Block>): List<TextFieldValue> {
     return currentBlocks.map { b ->
         when (b) {
             is Block.Text -> TextFieldValue(b.text)
             is Block.Checklist -> TextFieldValue(b.text, selection = TextRange(b.text.length))
+
+            // Added to satisfy exhaustiveness
+            is Block.FileBlock -> TextFieldValue("")
+            is Block.ImageBlock -> TextFieldValue("")
         }
     }
 }
 
 /**
  * Insert a checklist at the cursor position inside the given focused text block.
- *
- * - If focused block is Text: tries to split the text on the current line and insert checklist.
- * - If focused block is Checklist: inserts a new checklist below it and an empty text line after.
- *
- * Returns EditResult with updated blocks, fieldValues, and new focus.
  */
 fun insertChecklistAtCursorPure(
     blocks: List<Block>,
@@ -56,6 +51,7 @@ fun insertChecklistAtCursorPure(
 
     val idx = focusedBlockIndex.coerceIn(0, blocks.lastIndex)
     val focusedBlock = blocks[idx]
+
     if (focusedBlock is Block.Text) {
         val tfv = blockFieldValues.getOrNull(idx) ?: TextFieldValue(focusedBlock.text)
         val cursor = focusedCursorOffset.coerceIn(0, tfv.text.length)
@@ -67,7 +63,6 @@ fun insertChecklistAtCursorPure(
         val currentLine = text.substring(lineStart, lineEnd)
 
         val newBlocksMutable = blocks.toMutableList()
-        // remove the original text block; we'll add back appropriate fragments
         newBlocksMutable.removeAt(idx)
 
         if (currentLine.isBlank()) {
@@ -78,8 +73,9 @@ fun insertChecklistAtCursorPure(
             newBlocksMutable.add(idx + if (before.isNotEmpty()) 1 else 0, Block.Checklist("", false))
             newBlocksMutable.add(idx + if (before.isNotEmpty()) 2 else 1, Block.Text("\n" + after))
         } else {
-            val before = text.substring(0, lineEnd) // includes current line
+            val before = text.substring(0, lineEnd)
             val after = text.substring(lineEnd)
+
             if (before.isNotEmpty()) newBlocksMutable.add(idx, Block.Text(before))
             newBlocksMutable.add(idx + if (before.isNotEmpty()) 1 else 0, Block.Checklist("", false))
             newBlocksMutable.add(idx + if (before.isNotEmpty()) 2 else 1, Block.Text("\n" + after))
@@ -90,7 +86,7 @@ fun insertChecklistAtCursorPure(
         val newIndex = (idx + 1).coerceAtMost(normalized.lastIndex)
         return EditResult(normalized, fvs, newIndex, 0)
     } else {
-        // Focused on checklist: insert checklist after it + ensure a spacer text.
+        // Focused on checklist
         val newBlocks = blocks.toMutableList()
         newBlocks.add(idx + 1, Block.Checklist("", false))
         newBlocks.add(idx + 2, Block.Text("\n"))
@@ -102,11 +98,6 @@ fun insertChecklistAtCursorPure(
 
 /**
  * Handle backspace on an empty checklist (delete it and merge appropriately).
- *
- * If the checklist is removed, this function will:
- * - remove checklist block
- * - remove a following empty text placeholder if present
- * - compute new focus target and return updated blocks and fieldValues
  */
 fun deleteChecklistOnBackspacePure(
     blocks: List<Block>,
@@ -116,48 +107,43 @@ fun deleteChecklistOnBackspacePure(
 
     val idx = checklistIndex.coerceIn(0, blocks.lastIndex)
 
-    // Not a checklist? Return unchanged
     if (blocks[idx] !is Block.Checklist) {
         return EditResult(blocks, blockFieldValues, checklistIndex, 0)
     }
 
-    // Remove the checklist block
+    // Remove checklist
     val newBlocks = blocks.toMutableList()
     newBlocks.removeAt(idx)
 
-    // If everything is gone → insert an empty text block
     if (newBlocks.isEmpty()) {
         val single = listOf(Block.Text(""))
         val fvs = syncFieldValuesFromBlocksPure(single)
         return EditResult(single, fvs, 0, 0)
     }
 
-    // Decide which block to focus after deletion:
-    val targetIndex =
-        if (idx - 1 >= 0) idx - 1      // focus previous block
-        else 0                         // otherwise first block
-
+    val targetIndex = if (idx - 1 >= 0) idx - 1 else 0
     val fvs = syncFieldValuesFromBlocksPure(newBlocks)
 
-    // Compute cursor offset in the target block
     val target = newBlocks[targetIndex]
     val cursorPos = when (target) {
         is Block.Text -> target.text.length
         is Block.Checklist -> target.text.length
+
+        // Added to avoid non-exhaustive when
+        is Block.FileBlock -> 0
+        is Block.ImageBlock -> 0
     }
 
     return EditResult(
-        blocks = newBlocks.toList(),   // ensure immutable
+        blocks = newBlocks.toList(),
         fieldValues = fvs,
         focusedIndex = targetIndex,
         focusedCursorOffset = cursorPos
     )
 }
 
-
 /**
- * Handle Enter pressed inside a checklist:
- * - insert new empty checklist below and a spacer text after it
+ * Handle Enter pressed inside a checklist.
  */
 fun enterInChecklistPure(
     blocks: List<Block>,
@@ -165,6 +151,7 @@ fun enterInChecklistPure(
     checklistIndex: Int
 ): EditResult {
     val idx = checklistIndex.coerceIn(0, blocks.lastIndex)
+
     if (blocks[idx] !is Block.Checklist) {
         return EditResult(blocks, blockFieldValues, checklistIndex, 0)
     }
@@ -172,8 +159,10 @@ fun enterInChecklistPure(
     val newBlocks = blocks.toMutableList()
     newBlocks.add(idx + 1, Block.Checklist("", false))
     newBlocks.add(idx + 2, Block.Text("\n"))
+
     val normalized = newBlocks.toList()
     val fvs = syncFieldValuesFromBlocksPure(normalized)
     val newIndex = (idx + 1).coerceAtMost(normalized.lastIndex)
+
     return EditResult(normalized, fvs, newIndex, 0)
 }
