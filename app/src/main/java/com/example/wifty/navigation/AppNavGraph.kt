@@ -1,15 +1,19 @@
 package com.example.wifty.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.wifty.data.api.RetrofitClient
 import com.example.wifty.ui.screens.AccountManagement.EditProfileScreen
 import com.example.wifty.ui.screens.AccountManagement.ProfileScreen
 import com.example.wifty.ui.screens.AccountManagement.OTP.ForgotPasswordScreen
 import com.example.wifty.ui.screens.AccountManagement.OTP.OtpVerificationScreen
 import com.example.wifty.ui.screens.AccountManagement.OTP.CreateNewPasswordScreen
 import com.example.wifty.ui.screens.login.AuthScreen
+import com.example.wifty.ui.screens.login.AuthViewModel
+import com.example.wifty.ui.screens.login.AuthViewModelFactory
 import com.example.wifty.ui.screens.*
 import com.example.wifty.ui.screens.notes.*
 import com.example.wifty.viewmodel.FolderViewModel
@@ -21,6 +25,7 @@ fun AppNavGraph(
     notesVM: NotesViewModel,
     folderVM: FolderViewModel
 ) {
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(RetrofitClient.apiService))
 
     NavHost(
         navController = navController,
@@ -54,12 +59,12 @@ fun AppNavGraph(
         // ---- Login Screen ----
         composable(Routes.Login.route) {
             AuthScreen(
+                authViewModel = authViewModel,
                 onLoginSuccess = {
                     navController.navigate(Routes.Home.route) {
                         popUpTo(Routes.Login.route) { inclusive = true }
                     }
                 },
-                // 👇 THIS IS THE NEW PART THAT MAKES IT WORK
                 onNavigateToForgotPassword = {
                     navController.navigate(Routes.ForgotPassword.route)
                 }
@@ -69,6 +74,7 @@ fun AppNavGraph(
         // ---- Profile Screen ----
         composable(Routes.Profile.route) {
             ProfileScreen(
+                authViewModel = authViewModel,
                 onBack = { navController.popBackStack() },
                 onNavigateToEditProfile = {
                     navController.navigate(Routes.EditProfile.route)
@@ -80,6 +86,11 @@ fun AppNavGraph(
                 },
                 onNavigateToChangePassword = {
                     navController.navigate(Routes.ForgotPassword.route)
+                },
+                onDeleteAccount = {
+                    navController.navigate(Routes.Login.route) {
+                        popUpTo(Routes.Home.route) { inclusive = true }
+                    }
                 }
             )
         }
@@ -87,6 +98,7 @@ fun AppNavGraph(
         // ---- Edit Profile Screen ----
         composable(Routes.EditProfile.route) {
             EditProfileScreen(
+                authViewModel = authViewModel,
                 onBack = { navController.popBackStack() }
             )
         }

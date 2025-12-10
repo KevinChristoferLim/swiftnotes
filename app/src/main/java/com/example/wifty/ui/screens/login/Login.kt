@@ -19,9 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wifty.data.api.ApiService
-import com.example.wifty.data.api.RetrofitClient
 
 class AuthViewModelFactory(private val apiService: ApiService) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -35,10 +33,10 @@ class AuthViewModelFactory(private val apiService: ApiService) : ViewModelProvid
 
 @Composable
 fun AuthScreen(
+    authViewModel: AuthViewModel, // Parameter is now accepted
     onLoginSuccess: () -> Unit,
     onNavigateToForgotPassword: () -> Unit
 ) {
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(RetrofitClient.apiService))
     var isLogin by remember { mutableStateOf(true) }
 
     Column(
