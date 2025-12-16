@@ -18,7 +18,7 @@ fun HomeScreen(
 ) {
     val notes by notesVM.notes.collectAsState()
 
-    // 🔥 Key logic: If no notes -> show Landing. If there are notes -> show NotesList.
+    // Key logic: If no notes -> show Landing. If there are notes -> show NotesList.
     if (notes.isNullOrEmpty()) {
         LandingScreen(
             onCreateNewNote = onCreateNewNote,
