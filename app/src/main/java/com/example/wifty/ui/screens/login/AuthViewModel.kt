@@ -1,7 +1,9 @@
 package com.example.wifty.ui.screens.login
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.wifty.data.SecureTokenManager
 import com.example.wifty.data.api.ApiService
 import com.example.wifty.data.api.LoginRequest
 import com.example.wifty.data.api.SignUpRequest
@@ -19,9 +21,23 @@ data class AuthUiState(
     val user: UserData? = null
 )
 
-class AuthViewModel(private val apiService: ApiService) : ViewModel() {
+class AuthViewModel(private val apiService: ApiService, application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState
+
+    private val secureTokenManager = SecureTokenManager(application)
+
+    init {
+        checkForSavedToken()
+    }
+
+    private fun checkForSavedToken() {
+        val token = secureTokenManager.getToken()
+        val user = secureTokenManager.getUserData()
+        if (token != null) {
+            _uiState.value = AuthUiState(isLoggedIn = true, token = token, user = user)
+        }
+    }
 
     fun login(email: String, password: String) {
         if (!validateEmail(email) || password.isBlank()) {
@@ -32,12 +48,11 @@ class AuthViewModel(private val apiService: ApiService) : ViewModel() {
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-                
                 val response = apiService.login(LoginRequest(email, password))
-                
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body?.success == true && body.token != null) {
+                        secureTokenManager.saveAuthData(body.token, body.user)
                         _uiState.value = AuthUiState(
                             isLoading = false,
                             token = body.token,
@@ -79,17 +94,16 @@ class AuthViewModel(private val apiService: ApiService) : ViewModel() {
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-                
                 val response = apiService.signUp(SignUpRequest(username, email, password))
-                
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body?.success == true && body.token != null) {
+                        secureTokenManager.saveAuthData(body.token, body.user)
                         _uiState.value = AuthUiState(
                             isLoading = false,
                             token = body.token,
                             isLoggedIn = true,
-                            user = body.user?.copy(profile_picture = null) // Ensure no profile picture on sign up
+                            user = body.user?.copy(profile_picture = null)
                         )
                     } else {
                         _uiState.value = _uiState.value.copy(
@@ -112,6 +126,11 @@ class AuthViewModel(private val apiService: ApiService) : ViewModel() {
         }
     }
 
+    fun logout() {
+        secureTokenManager.clearAuthData()
+        _uiState.value = AuthUiState()
+    }
+
     fun forgotPassword(email: String) {
         if (!validateEmail(email)) {
             _uiState.value = _uiState.value.copy(error = "Invalid email")
@@ -121,9 +140,7 @@ class AuthViewModel(private val apiService: ApiService) : ViewModel() {
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-                
                 val response = apiService.forgotPassword(ForgotPasswordRequest(email))
-                
                 if (response.isSuccessful) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -156,7 +173,7 @@ class AuthViewModel(private val apiService: ApiService) : ViewModel() {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
                 val response = apiService.deleteAccount("Bearer $token")
                 if (response.isSuccessful) {
-                    // Reset state on successful deletion
+                    secureTokenManager.clearAuthData()
                     _uiState.value = AuthUiState()
                 } else {
                     _uiState.value = _uiState.value.copy(

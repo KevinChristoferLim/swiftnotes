@@ -1,5 +1,6 @@
 package com.example.wifty.ui.screens.login
 
+import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,11 +22,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.wifty.data.api.ApiService
 
-class AuthViewModelFactory(private val apiService: ApiService) : ViewModelProvider.Factory {
+class AuthViewModelFactory(private val apiService: ApiService, private val application: Application) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return AuthViewModel(apiService) as T
+            return AuthViewModel(apiService, application) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
@@ -126,16 +127,6 @@ fun LoginUI(
         uiState.error?.let {
             Text(it, color = Color.Red)
         }
-
-        Spacer(modifier = Modifier.height(15.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            Text("Or", fontSize = 14.sp, color = Color.Gray)
-        }
-
-        Spacer(modifier = Modifier.height(15.dp))
-
-        GoogleButton {}
     }
 }
 
@@ -223,20 +214,5 @@ fun GradientButton(text: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Text(text, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-fun GoogleButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .shadow(4.dp, RoundedCornerShape(10.dp))
-            .background(Color.White, RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Sign in with Google", fontSize = 16.sp, color = Color.Black)
     }
 }
