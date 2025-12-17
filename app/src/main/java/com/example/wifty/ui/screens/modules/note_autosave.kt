@@ -56,10 +56,8 @@ fun commitBlocksToModelAndSave(
         title = titleText,
         content = contentString,
         colorLong = colorLong,
-        isPinned = isPinned,
-        isLocked = isLocked,
         checklist = checklist,
-        updatedAt = System.currentTimeMillis()
+        updatedAt = System.currentTimeMillis() // Ensure updatedAt is refreshed for others to see
     )
 
     // persist via viewModel (fire & forget; viewModel implementation handles threading)

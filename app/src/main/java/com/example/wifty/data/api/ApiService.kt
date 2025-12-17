@@ -2,19 +2,11 @@ package com.example.wifty.data.api
 
 import com.example.wifty.model.Folder
 import com.example.wifty.model.Note
-import com.example.wifty.model.Reminder
+import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import retrofit2.http.POST
-import retrofit2.http.Body
 import retrofit2.Response
-import retrofit2.http.DELETE
-import retrofit2.http.GET
-import retrofit2.http.Header
-import retrofit2.http.Multipart
-import retrofit2.http.PUT
-import retrofit2.http.Part
-import retrofit2.http.Path
+import retrofit2.http.*
 
 data class LoginRequest(
     val email: String,
@@ -32,7 +24,7 @@ data class UserData(
     val id: String,
     val username: String,
     val email: String,
-    val profile_picture: String?
+    @SerializedName("profile_picture") val profile_picture: String?
 )
 
 data class SignUpRequest(
@@ -50,8 +42,21 @@ data class ChangePasswordRequest(
     val newPassword: String
 )
 
-data class CollaboratorRequest(
-    val email: String
+data class CreateNoteRequest(
+    val title: String,
+    @SerializedName("description") val content: String?,
+    @SerializedName("folder_id") val folderId: Int? = null
+)
+
+data class UpdateNoteRequest(
+    val title: String?,
+    @SerializedName("description") val content: String?,
+    @SerializedName("folder_id") val folderId: Int?
+)
+
+data class AddCollaboratorRequest(
+    val email: String, 
+    val role: String? = "editor"
 )
 
 interface ApiService {
@@ -67,104 +72,47 @@ interface ApiService {
     @DELETE("/api/auth/delete-account")
     suspend fun deleteAccount(@Header("Authorization") token: String): Response<Unit>
 
+    @PUT("/api/auth/change-password")
+    suspend fun changePassword(
+        @Header("Authorization") token: String,
+        @Body request: ChangePasswordRequest
+    ): Response<Unit>
+
     @Multipart
     @PUT("/api/auth/update-profile")
     suspend fun updateProfile(
         @Header("Authorization") token: String,
         @Part("username") username: RequestBody,
         @Part("email") email: RequestBody,
-        @Part profilePicture: MultipartBody.Part? // Nullable if no image is uploaded
-    ): Response<LoginResponse> // Assuming the response is similar to LoginResponse
-
-    @PUT("/api/auth/change-password")
-    suspend fun changePassword(
-        @Header("Authorization") token: String,
-        @Body request: ChangePasswordRequest
-    ): Response<Unit> // Assuming the endpoint returns a simple success/fail response
+        @Part profilePicture: MultipartBody.Part?
+    ): Response<LoginResponse>
 
     @GET("/api/notes")
-    suspend fun getNotes(@Header("Authorization") token: String): Response<List<Note>>
+    suspend fun getNotes(@Header("Authorization") auth: String): Response<List<Note>>
 
     @POST("/api/notes")
     suspend fun createNote(
-        @Header("Authorization") token: String,
-        @Body note: Note
-    ): Response<Note>
+        @Header("Authorization") auth: String,
+        @Body body: CreateNoteRequest
+    ): Response<Map<String, Any>>
 
-    @PUT("/api/notes/{noteId}")
+    @PUT("/api/notes/{id}")
     suspend fun updateNote(
-        @Header("Authorization") token: String,
-        @Path("noteId") noteId: String,
-        @Body note: Note
-    ): Response<Note>
+        @Header("Authorization") auth: String,
+        @Path("id") id: String,
+        @Body body: UpdateNoteRequest
+    ): Response<Map<String, Any>>
 
-    @DELETE("/api/notes/{noteId}")
+    @DELETE("/api/notes/{id}")
     suspend fun deleteNote(
-        @Header("Authorization") token: String,
-        @Path("noteId") noteId: String
-    ): Response<Unit>
+        @Header("Authorization") auth: String,
+        @Path("id") id: String
+    ): Response<Map<String, Any>>
 
     @POST("/api/notes/{noteId}/collaborators")
     suspend fun addCollaborator(
-        @Header("Authorization") token: String,
+        @Header("Authorization") auth: String,
         @Path("noteId") noteId: String,
-        @Body collaboratorRequest: CollaboratorRequest
-    ): Response<Unit>
-
-    @GET("/api/folders")
-    suspend fun getAllFolders(@Header("Authorization") token: String): Response<List<Folder>>
-
-    @POST("/api/folders")
-    suspend fun createFolder(@Header("Authorization") token: String, @Body folder: Folder): Response<Folder>
-
-    @PUT("/api/folders/{folderId}")
-    suspend fun updateFolder(
-        @Header("Authorization") token: String,
-        @Path("folderId") folderId: String,
-        @Body folder: Folder
-    ): Response<Folder>
-
-    @DELETE("/api/folders/{folderId}")
-    suspend fun deleteFolder(
-        @Header("Authorization") token: String,
-        @Path("folderId") folderId: String
-    ): Response<Unit>
-
-    @POST("/api/folders/{folderId}/notes/{noteId}")
-    suspend fun addNoteToFolder(
-        @Header("Authorization") token: String,
-        @Path("folderId") folderId: String,
-        @Path("noteId") noteId: String
-    ): Response<Unit>
-
-    @POST("/api/reminders")
-    suspend fun createReminder(@Header("Authorization") token: String, @Body reminder: Reminder): Response<Reminder>
-
-    @PUT("/api/reminders/{reminderId}")
-    suspend fun updateReminder(
-        @Header("Authorization") token: String,
-        @Path("reminderId") reminderId: String,
-        @Body reminder: Reminder
-    ): Response<Reminder>
-
-    @DELETE("/api/reminders/{reminderId}")
-    suspend fun deleteReminder(
-        @Header("Authorization") token: String,
-        @Path("reminderId") reminderId: String
-    ): Response<Unit>
-
-    @GET("/api/reminders/{reminderId}")
-    suspend fun getReminder(
-        @Header("Authorization") token: String,
-        @Path("reminderId") reminderId: String
-    ): Response<Reminder>
-
-    @GET("/api/notes/{noteId}/reminders")
-    suspend fun getRemindersByNoteId(
-        @Header("Authorization") token: String,
-        @Path("noteId") noteId: String
-    ): Response<List<Reminder>>
-
-    @GET("/api/reminders")
-    suspend fun getAllReminders(@Header("Authorization") token: String): Response<List<Reminder>>
+        @Body body: AddCollaboratorRequest
+    ): Response<Map<String, Any>>
 }

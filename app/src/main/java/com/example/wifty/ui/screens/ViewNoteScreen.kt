@@ -3,10 +3,9 @@ package com.example.wifty.ui.screens
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
-import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -36,6 +35,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import java.io.FileNotFoundException
+import androidx.activity.compose.rememberLauncherForActivityResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,10 +67,16 @@ fun ViewNoteScreen(
     val authState by authViewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    fun commitAndAssign() {
+    fun commitAndSave() {
         val token = authState.token ?: return
         val updated = commitBlocksToModelAndSave(token, note, title.text, blocks, colorLong, viewModel)
         if (updated != null) note = updated
+    }
+
+    // Handle system back press
+    BackHandler {
+        commitAndSave()
+        onClose()
     }
 
     fun scheduleAutosaveLocal(scope: CoroutineScope, commitFn: () -> Unit, currentJob: Job?): Job? {
@@ -119,7 +125,7 @@ fun ViewNoteScreen(
         blockFieldValues = res.fieldValues
         focusedBlockIndex = res.focusedIndex
         focusedCursorOffset = res.focusedCursorOffset
-        scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+        scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
     }
 
     fun deleteChecklistOnBackspaceLocal(index: Int) {
@@ -128,7 +134,7 @@ fun ViewNoteScreen(
         blockFieldValues = res.fieldValues
         focusedBlockIndex = res.focusedIndex
         focusedCursorOffset = res.focusedCursorOffset
-        scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+        scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
     }
 
     fun enterInChecklistLocal(index: Int) {
@@ -137,7 +143,7 @@ fun ViewNoteScreen(
         blockFieldValues = res.fieldValues
         focusedBlockIndex = res.focusedIndex
         focusedCursorOffset = res.focusedCursorOffset
-        scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+        scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
     }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -150,7 +156,7 @@ fun ViewNoteScreen(
                 blockFieldValues = res.fieldValues
                 focusedBlockIndex = res.focusedIndex
                 focusedCursorOffset = res.focusedCursorOffset
-                scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+                scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
             }
         }
     }
@@ -170,7 +176,7 @@ fun ViewNoteScreen(
                 blockFieldValues = res.fieldValues
                 focusedBlockIndex = res.focusedIndex
                 focusedCursorOffset = res.focusedCursorOffset
-                scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+                scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
             }
         }
     }
@@ -194,7 +200,10 @@ fun ViewNoteScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = {
+                        commitAndSave()
+                        onClose()
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -209,11 +218,7 @@ fun ViewNoteScreen(
                         Icon(Icons.Default.Notifications, contentDescription = "Add reminder")
                     }
                     TextButton(onClick = {
-                        val token = authState.token
-                        if (token != null) {
-                            val updated = commitBlocksToModelAndSave(token, note, title.text, blocks, colorLong, viewModel)
-                            if (updated != null) note = updated
-                        }
+                        commitAndSave()
                         onClose()
                     }) {
                         Text("Done")
@@ -265,7 +270,7 @@ fun ViewNoteScreen(
                     onValueChange = {
                         if (!isLocked) {
                             title = it
-                            scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+                            scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
                         }
                     },
                     textStyle = TextStyle(
@@ -312,7 +317,7 @@ fun ViewNoteScreen(
 
                                         focusedBlockIndex = index
                                         focusedCursorOffset = newTfV.selection.start
-                                        scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+                                        scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth()
@@ -331,7 +336,7 @@ fun ViewNoteScreen(
                                         newBlocks[index] = Block.Checklist(block.text, checked)
                                         blocks = newBlocks
                                         blockFieldValues = syncFieldValuesFromBlocksPure(newBlocks)
-                                        scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+                                        scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
                                     }
                                 },
                                 onValueChange = { newTfV ->
@@ -346,7 +351,7 @@ fun ViewNoteScreen(
 
                                         focusedBlockIndex = index
                                         focusedCursorOffset = newTfV.selection.start
-                                        scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+                                        scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
                                     }
                                 },
                                 onKeyEvent = { ke ->

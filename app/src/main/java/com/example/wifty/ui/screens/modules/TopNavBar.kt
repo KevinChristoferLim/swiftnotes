@@ -7,7 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +29,7 @@ fun TopNavBar(
     onSearchClick: ((query: String, type: String) -> Unit)? = null, // type = "Notes" or "Folders"
     searchType: String = "Notes", // default type
     onOpenFolders: (() -> Unit)? = null,
+    onOpenSharedNotes: (() -> Unit)? = null,
     onOpenProfile: (() -> Unit)? = null
 ) {
     var showSearchDialog by remember { mutableStateOf(false) }
@@ -42,28 +43,42 @@ fun TopNavBar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
 
-        // Search icon
-        onSearchClick?.let { searchCallback ->
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Search",
-                modifier = Modifier
-                    .size(26.dp)
-                    .clickable { showSearchDialog = true }
-            )
-            Spacer(modifier = Modifier.width(18.dp))
-        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Search icon
+            onSearchClick?.let { searchCallback ->
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clickable { showSearchDialog = true }
+                )
+                Spacer(modifier = Modifier.width(18.dp))
+            }
 
-        // Folders icon
-        onOpenFolders?.let {
-            Icon(
-                imageVector = Icons.Default.AccountBox,
-                contentDescription = "Folders",
-                modifier = Modifier
-                    .size(26.dp)
-                    .clickable { it() }
-            )
-            Spacer(modifier = Modifier.width(18.dp))
+            // Folders icon
+            onOpenFolders?.let {
+                Icon(
+                    imageVector = Icons.Default.AccountBox,
+                    contentDescription = "Folders",
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clickable { it() }
+                )
+                Spacer(modifier = Modifier.width(18.dp))
+            }
+
+            // Shared Notes icon
+            onOpenSharedNotes?.let {
+                Icon(
+                    imageVector = Icons.Default.Face, // Changed from Groups to Face as a fallback for standard material icons
+                    contentDescription = "Shared Notes",
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clickable { it() }
+                )
+                Spacer(modifier = Modifier.width(18.dp))
+            }
         }
 
         // Profile icon
