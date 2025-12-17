@@ -164,13 +164,6 @@ class NotesViewModel(
         }
     }
 
-    fun moveNoteToFolder(token: String, noteId: String, folderId: String?) {
-        viewModelScope.launch {
-            repo.moveNoteToFolder(token, noteId, folderId)
-            refreshNotesLocally()
-        }
-    }
-
     fun createNoteInFolder(token: String, folderId: String, onCreated: (String) -> Unit = {}) {
         viewModelScope.launch {
             val note = repo.createNote(
