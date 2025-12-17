@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -26,6 +27,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.example.wifty.model.Note
 import com.example.wifty.ui.screens.login.AuthViewModel
@@ -181,10 +184,28 @@ fun ViewNoteScreen(
         }
     }
 
+    // Observe notes list so we pick up the note if it arrives after navigation (fixes "ghost note" when create -> view races)
+    val allNotes by viewModel.notes.collectAsState()
+
     LaunchedEffect(noteId) {
         viewModel.getNoteById(noteId) { loaded ->
             note = loaded
             loaded?.let {
+                title = TextFieldValue(it.title)
+                colorLong = it.colorLong
+                val parsed = parseContentToBlocks(it.content ?: "")
+                blocks = parsed
+                syncFieldValuesFromBlocksLocal(parsed)
+            }
+        }
+    }
+
+    LaunchedEffect(allNotes, noteId) {
+        // If the note wasn't available at first (e.g. create -> navigate race), pick it up from the refreshed notes list
+        if (note == null) {
+            val loaded = allNotes.find { it.id == noteId }
+            loaded?.let {
+                note = it
                 title = TextFieldValue(it.title)
                 colorLong = it.colorLong
                 val parsed = parseContentToBlocks(it.content ?: "")
@@ -375,6 +396,9 @@ fun ViewNoteScreen(
                         }
 
                         is Block.ImageBlock -> {
+                            var expanded by remember { mutableStateOf(false) }
+
+                            // Inline image - scaled to width and keeps a minimum height
                             AsyncImage(
                                 model = Uri.parse(block.uri),
                                 contentDescription = "Image",
@@ -382,7 +406,31 @@ fun ViewNoteScreen(
                                     .fillMaxWidth()
                                     .heightIn(min = 120.dp)
                                     .padding(vertical = 8.dp)
+                                    .clickable { expanded = true },
+                                contentScale = ContentScale.FillWidth
                             )
+
+                            // Full-screen viewer when user taps the image
+                            if (expanded) {
+                                Dialog(onDismissRequest = { expanded = false }) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black)
+                                            .clickable { expanded = false },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        AsyncImage(
+                                            model = Uri.parse(block.uri),
+                                            contentDescription = "Image (full)",
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentScale = ContentScale.Fit
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         is Block.FileBlock -> {
