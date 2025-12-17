@@ -27,8 +27,12 @@ class NotesViewModel(
     private var _token: String? = null
 
     val ownedNotes: StateFlow<List<Note>> = combine(_notes, _currentUserId) { notes: List<Note>, userId: String? ->
-        if (userId == null) notes 
-        else notes.filter { it.ownerId?.toString() == userId || it.ownerId == null }
+        if (userId == null) notes
+        else {
+            val uid = userId.toIntOrNull()
+            if (uid == null) notes
+            else notes.filter { it.ownerId == uid }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val sharedNotes: StateFlow<List<Note>> = combine(
@@ -36,7 +40,17 @@ class NotesViewModel(
         _currentUserId, 
         _currentUserEmail
     ) { notes: List<Note>, userId: String?, email: String? ->
-        emptyList<Note>()
+        if (userId == null) emptyList()
+        else {
+            val uid = userId.toIntOrNull()
+            if (uid == null) emptyList()
+            else {
+                // Notes where current user is not the owner but marked as collaboration
+                notes.filter { note ->
+                    (note.ownerId != uid) && (note.isCollaboration || note.userId == uid)
+                }
+            }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setCurrentUser(id: String?, email: String?, token: String?) {

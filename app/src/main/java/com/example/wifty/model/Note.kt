@@ -13,6 +13,7 @@ data class Note(
     @SerializedName("is_locked") val isLocked: Boolean = false,
     @SerializedName("created_at") val createdAt: Long = System.currentTimeMillis(),
     @SerializedName("updated_at") val updatedAt: Long = System.currentTimeMillis(),
+    @SerializedName("is_collaboration") val isCollaboration: Boolean = false,
     
     // UI specific fields preserved for app functionality
     @SerializedName("color_long")

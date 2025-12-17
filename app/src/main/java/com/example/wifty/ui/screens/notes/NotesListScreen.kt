@@ -72,7 +72,6 @@ fun NotesListScreen(
     }
 
     val ownedNotes by viewModel.ownedNotes.collectAsState()
-    val sharedNotes by viewModel.sharedNotes.collectAsState()
     val folders by folderViewModel.folders.collectAsState()
 
     // --- Search State ---
@@ -87,10 +86,6 @@ fun NotesListScreen(
     val filteredOwnedNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
         ownedNotes.filter { it.title.contains(searchQuery, ignoreCase = true) }
     } else ownedNotes
-
-    val filteredSharedNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
-        sharedNotes.filter { it.title.contains(searchQuery, ignoreCase = true) }
-    } else sharedNotes
 
     Box(
         modifier = Modifier
@@ -167,32 +162,7 @@ fun NotesListScreen(
                         }
                     }
 
-                    // --- Shared with Me Section ---
-                    if (filteredSharedNotes.isNotEmpty()) {
-                        item(span = { GridItemSpan(2) }) {
-                            Text(
-                                "Shared with Me",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                ),
-                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                            )
-                        }
-                        items(filteredSharedNotes) { note ->
-                            NoteCard(
-                                note = note,
-                                onClick = { onOpenNote(note.id) },
-                                onLongPress = { pressOffset ->
-                                    selectedNote = note
-                                    menuOffset = pressOffset
-                                    menuExpanded = true
-                                }
-                            )
-                        }
-                    }
-                    
-                    if (filteredOwnedNotes.isEmpty() && filteredSharedNotes.isEmpty()) {
+                    if (filteredOwnedNotes.isEmpty()) {
                          item(span = { GridItemSpan(2) }) {
                              Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                  Text("No notes found", color = Color.Gray)
