@@ -44,7 +44,6 @@ fun ViewNoteScreen(
     viewModel: NotesViewModel,
     onClose: () -> Unit
 ) {
-    // UI state (kept local in the screen)
     var note by remember { mutableStateOf<Note?>(null) }
     var title by remember { mutableStateOf(TextFieldValue("")) }
     var colorLong by remember { mutableStateOf(0xFF4B63FFu.toLong()) }
@@ -62,10 +61,9 @@ fun ViewNoteScreen(
     var isLocked by rememberSaveable { mutableStateOf(false) }
     var isPinned by rememberSaveable { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
+    var showCollaboratorDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-
-    // ---- Helpers (must exist before being referenced) ----
 
     fun commitAndAssign() {
         val updated = commitBlocksToModelAndSave(note, title.text, blocks, colorLong, viewModel)
@@ -73,13 +71,11 @@ fun ViewNoteScreen(
     }
 
     fun scheduleAutosaveLocal(scope: CoroutineScope, commitFn: () -> Unit, currentJob: Job?): Job? {
-        // return the Job created by scheduleAutosave so callers can reassign autosaveJob
         return scheduleAutosave(scope, currentJob) {
             commitFn()
         }
     }
 
-    // Helper to query display name & size from content URI (returns Pair<name?, size?>)
     fun queryFilenameAndSize(context: android.content.Context, uri: Uri): Pair<String?, Long?> {
         return try {
             var name: String? = null
@@ -102,20 +98,17 @@ fun ViewNoteScreen(
         }
     }
 
-    //Helper lambdas that use the pure functions in other modules
-
     fun syncFieldValuesFromBlocksLocal(currentBlocks: List<Block>) {
         blockFieldValues = currentBlocks.map { b ->
             when (b) {
                 is Block.Text -> TextFieldValue(b.text)
                 is Block.Checklist -> TextFieldValue(b.text, selection = TextRange(b.text.length))
-                is Block.ImageBlock -> TextFieldValue("") // images don't need editor value
-                is Block.FileBlock -> TextFieldValue("")  // files don't need editor value
+                is Block.ImageBlock -> TextFieldValue("")
+                is Block.FileBlock -> TextFieldValue("")
             }
         }
     }
 
-    // insert checklist (wraps pure function)
     fun insertChecklistAtCursorLocal() {
         if (isLocked) return
         val res = insertChecklistAtCursorPure(blocks, blockFieldValues, focusedBlockIndex, focusedCursorOffset, isLocked)
@@ -126,7 +119,6 @@ fun ViewNoteScreen(
         scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
     }
 
-    // delete checklist on backspace (used by key handling)
     fun deleteChecklistOnBackspaceLocal(index: Int) {
         val res = deleteChecklistOnBackspacePure(blocks, blockFieldValues, index)
         blocks = res.blocks
@@ -136,7 +128,6 @@ fun ViewNoteScreen(
         scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
     }
 
-    // enter in checklist
     fun enterInChecklistLocal(index: Int) {
         val res = enterInChecklistPure(blocks, blockFieldValues, index)
         blocks = res.blocks
@@ -146,7 +137,6 @@ fun ViewNoteScreen(
         scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
     }
 
-    // --- Pickers (insert media at cursor) ---
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -182,7 +172,6 @@ fun ViewNoteScreen(
         }
     }
 
-    // --- Load note by id (once) ---
     LaunchedEffect(noteId) {
         viewModel.getNoteById(noteId) { loaded ->
             note = loaded
@@ -196,7 +185,6 @@ fun ViewNoteScreen(
         }
     }
 
-    // ---------- UI scaffold ----------
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -211,16 +199,13 @@ fun ViewNoteScreen(
                     IconButton(onClick = { isLocked = !isLocked }) {
                         Icon(Icons.Default.Lock, contentDescription = if (isLocked) "Unlock" else "Lock")
                     }
-                    IconButton(onClick = {
-                        isPinned = !isPinned
-                    }) {
+                    IconButton(onClick = { isPinned = !isPinned }) {
                         Icon(Icons.Default.Star, contentDescription = "Pin", tint = if (isPinned) Color.Yellow else LocalContentColor.current)
                     }
                     IconButton(onClick = { showReminderDialog = true }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Add reminder")
                     }
                     TextButton(onClick = {
-                        // immediate save & close
                         val updated = commitBlocksToModelAndSave(note, title.text, blocks, colorLong, viewModel)
                         if (updated != null) note = updated
                         onClose()
@@ -235,7 +220,17 @@ fun ViewNoteScreen(
             ReminderDialog(
                 onDismiss = { showReminderDialog = false },
                 onSave = { reminder ->
+                    viewModel.addReminderToNote(noteId, reminder)
                     showReminderDialog = false
+                }
+            )
+        }
+        if (showCollaboratorDialog) {
+            CollaboratorDialog(
+                onDismiss = { showCollaboratorDialog = false },
+                onConfirm = { email ->
+                    viewModel.addCollaboratorToNote(noteId, email)
+                    showCollaboratorDialog = false
                 }
             )
         }
@@ -255,7 +250,6 @@ fun ViewNoteScreen(
             ) {
                 Spacer(Modifier.height(12.dp))
 
-                // Title editor
                 BasicTextField(
                     value = title,
                     onValueChange = {
@@ -283,9 +277,12 @@ fun ViewNoteScreen(
 
                 Spacer(Modifier.height(8.dp))
                 Text("Last updated", fontSize = 13.sp, color = Color.Gray)
+                note?.reminder?.let { reminder ->
+                    Spacer(Modifier.height(8.dp))
+                    Text("Reminder: ${reminder.dateMillis}", fontSize = 13.sp, color = Color.Gray)
+                }
                 Spacer(Modifier.height(8.dp))
 
-                // Render each block using the small composables
                 for ((index, block) in blocks.withIndex()) {
                     when (block) {
                         is Block.Text -> {
@@ -363,7 +360,6 @@ fun ViewNoteScreen(
                         }
 
                         is Block.ImageBlock -> {
-                            // show the image inline
                             AsyncImage(
                                 model = Uri.parse(block.uri),
                                 contentDescription = "Image",
@@ -375,7 +371,6 @@ fun ViewNoteScreen(
                         }
 
                         is Block.FileBlock -> {
-                            // file card UI
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -398,7 +393,6 @@ fun ViewNoteScreen(
                                         if (sizeText.isNotEmpty()) Text(sizeText, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                                     }
                                     IconButton(onClick = {
-                                        // open the file using Intent
                                         try {
                                             val intent = Intent(Intent.ACTION_VIEW).apply {
                                                 data = Uri.parse(block.uri)
@@ -406,7 +400,6 @@ fun ViewNoteScreen(
                                             }
                                             context.startActivity(intent)
                                         } catch (e: Exception) {
-                                            // ignore or show snackbar in future
                                         }
                                     }) {
                                         Icon(imageVector = Icons.Default.Add, contentDescription = "Open")
@@ -420,7 +413,6 @@ fun ViewNoteScreen(
                 Spacer(Modifier.height(40.dp))
             }
 
-            // Bottom toolbar & more-menu
             var showMoreMenu by remember { mutableStateOf(false) }
             var showDeleteDialog by remember { mutableStateOf(false) }
 
@@ -443,6 +435,7 @@ fun ViewNoteScreen(
                         showMoreMenu = false
                     },
                     onCollaboratorClick = {
+                        showCollaboratorDialog = true
                         showMoreMenu = false
                     },
                     modifier = Modifier
@@ -467,15 +460,6 @@ fun ViewNoteScreen(
     }
 }
 
-/**
- * Insert a media block (image/file) at the focused block+cursor.
- * Returns new blocks, new field values, new focus index and cursor offset.
- *
- * Simple behavior:
- * - If focused block is Text, split the text at cursor into leftText and rightText,
- *   replace current block with leftText, insert media block, then insert rightText as Text block (if non-empty).
- * - If focused block is Checklist or other, insert media after current block.
- */
 data class InsertResult(
     val blocks: List<Block>,
     val fieldValues: List<TextFieldValue>,
@@ -488,13 +472,12 @@ fun insertMediaAtCursor(
     fieldValues: List<TextFieldValue>,
     focusedIndex: Int,
     cursorOffset: Int,
-    media: Block // Block.ImageBlock or Block.FileBlock
+    media: Block
 ): InsertResult {
     val newBlocks = blocks.toMutableList()
     val newFields = fieldValues.toMutableList()
 
     if (focusedIndex < 0) {
-        // append at end
         newBlocks.add(media)
         newFields.add(TextFieldValue(""))
         return InsertResult(newBlocks, newFields, newBlocks.indexOf(media), 0)
@@ -507,7 +490,6 @@ fun insertMediaAtCursor(
         val left = if (cursorOffset <= text.length) text.substring(0, cursorOffset) else text
         val right = if (cursorOffset <= text.length) text.substring(cursorOffset) else ""
 
-        // replace current text block with left, insert media, then right (if any)
         newBlocks[focusedIndex] = Block.Text(left)
         newFields[focusedIndex] = TextFieldValue(left)
 
@@ -518,12 +500,11 @@ fun insertMediaAtCursor(
         if (right.isNotEmpty()) {
             newBlocks.add(insertPos + 1, Block.Text(right))
             newFields.add(insertPos + 1, TextFieldValue(right))
-            return InsertResult(newBlocks, newFields, insertPos + 1, 0) // focus on text after media
+            return InsertResult(newBlocks, newFields, insertPos + 1, 0)
         } else {
             return InsertResult(newBlocks, newFields, insertPos + 1, 0)
         }
     } else {
-        // not a text block: insert after current block
         val insertPos = (focusedIndex + 1).coerceAtMost(newBlocks.size)
         newBlocks.add(insertPos, media)
         newFields.add(insertPos, TextFieldValue(""))

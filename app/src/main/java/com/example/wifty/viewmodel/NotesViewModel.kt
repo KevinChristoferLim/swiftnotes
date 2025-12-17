@@ -95,6 +95,10 @@ class NotesViewModel(
         }
     }
 
+    fun addCollaboratorToNote(noteId: String, email: String) {
+        // TODO: Implement backend call
+    }
+
     // ----------------------------------------------------
     //  ATTACHMENTS (no Note model changes required!)
     // ----------------------------------------------------
