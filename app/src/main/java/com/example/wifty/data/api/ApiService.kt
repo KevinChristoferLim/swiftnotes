@@ -1,6 +1,8 @@
 package com.example.wifty.data.api
 
+import com.example.wifty.model.Folder
 import com.example.wifty.model.Note
+import com.example.wifty.model.Reminder
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.POST
@@ -108,4 +110,61 @@ interface ApiService {
         @Path("noteId") noteId: String,
         @Body collaboratorRequest: CollaboratorRequest
     ): Response<Unit>
+
+    @GET("/api/folders")
+    suspend fun getAllFolders(@Header("Authorization") token: String): Response<List<Folder>>
+
+    @POST("/api/folders")
+    suspend fun createFolder(@Header("Authorization") token: String, @Body folder: Folder): Response<Folder>
+
+    @PUT("/api/folders/{folderId}")
+    suspend fun updateFolder(
+        @Header("Authorization") token: String,
+        @Path("folderId") folderId: String,
+        @Body folder: Folder
+    ): Response<Folder>
+
+    @DELETE("/api/folders/{folderId}")
+    suspend fun deleteFolder(
+        @Header("Authorization") token: String,
+        @Path("folderId") folderId: String
+    ): Response<Unit>
+
+    @POST("/api/folders/{folderId}/notes/{noteId}")
+    suspend fun addNoteToFolder(
+        @Header("Authorization") token: String,
+        @Path("folderId") folderId: String,
+        @Path("noteId") noteId: String
+    ): Response<Unit>
+
+    @POST("/api/reminders")
+    suspend fun createReminder(@Header("Authorization") token: String, @Body reminder: Reminder): Response<Reminder>
+
+    @PUT("/api/reminders/{reminderId}")
+    suspend fun updateReminder(
+        @Header("Authorization") token: String,
+        @Path("reminderId") reminderId: String,
+        @Body reminder: Reminder
+    ): Response<Reminder>
+
+    @DELETE("/api/reminders/{reminderId}")
+    suspend fun deleteReminder(
+        @Header("Authorization") token: String,
+        @Path("reminderId") reminderId: String
+    ): Response<Unit>
+
+    @GET("/api/reminders/{reminderId}")
+    suspend fun getReminder(
+        @Header("Authorization") token: String,
+        @Path("reminderId") reminderId: String
+    ): Response<Reminder>
+
+    @GET("/api/notes/{noteId}/reminders")
+    suspend fun getRemindersByNoteId(
+        @Header("Authorization") token: String,
+        @Path("noteId") noteId: String
+    ): Response<List<Reminder>>
+
+    @GET("/api/reminders")
+    suspend fun getAllReminders(@Header("Authorization") token: String): Response<List<Reminder>>
 }

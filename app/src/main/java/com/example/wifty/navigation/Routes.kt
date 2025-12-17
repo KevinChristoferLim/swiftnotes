@@ -13,7 +13,11 @@ sealed class Routes(val route: String) {
     object ChangePassword : Routes("change_password")
 
     object NotesList : Routes("notes_list")
-    object CreateNote : Routes("create_note")
+    object CreateNote : Routes("create_note?folderId={folderId}") {
+        fun pass(folderId: String? = null): String {
+            return if (folderId != null) "create_note?folderId=$folderId" else "create_note"
+        }
+    }
 
     object ViewNote : Routes("view_note/{noteId}") {
         fun pass(noteId: String) = "view_note/$noteId"

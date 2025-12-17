@@ -5,8 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.example.wifty.data.api.RetrofitClient
 import com.example.wifty.ui.screens.AccountManagement.ChangePasswordScreen
 import com.example.wifty.ui.screens.AccountManagement.EditProfileScreen
@@ -50,7 +52,7 @@ fun AppNavGraph(
                 authViewModel = authViewModel,
                 notesVM = notesVM,
                 folderVM = folderVM,
-                onCreateNewNote = { navController.navigate(Routes.CreateNote.route) },
+                onCreateNewNote = { navController.navigate(Routes.CreateNote.pass()) },
                 onOpenNote = { id -> navController.navigate(Routes.ViewNote.pass(id)) },
                 onOpenFolders = { navController.navigate(Routes.FolderList.route) },
                 onOpenProfile = { navController.navigate(Routes.Profile.route) }
@@ -121,7 +123,7 @@ fun AppNavGraph(
                 authViewModel = authViewModel,
                 folderViewModel = folderVM,
                 onCreateNewNote = {
-                    navController.navigate(Routes.CreateNote.route)
+                    navController.navigate(Routes.CreateNote.pass())
                 },
                 onOpenNote = { id: String ->
                     navController.navigate(Routes.ViewNote.pass(id))
@@ -136,14 +138,21 @@ fun AppNavGraph(
         }
 
         // ---- CREATE NOTE ----
-        composable(Routes.CreateNote.route) {
+        composable(
+            route = Routes.CreateNote.route,
+            arguments = listOf(navArgument("folderId") {
+                type = NavType.StringType
+                nullable = true
+            })
+        ) { backStackEntry ->
+            val folderId = backStackEntry.arguments?.getString("folderId")
             CreateNoteScreen(
                 viewModel = notesVM,
                 authViewModel = authViewModel,
+                folderId = folderId,
                 onCreated = { newId ->
                     navController.navigate(Routes.ViewNote.pass(newId)) {
-                        popUpTo(Routes.CreateNote.route) { inclusive = true
-                        }
+                        popUpTo(Routes.CreateNote.route) { inclusive = true }
                     }
                 }
             )
@@ -173,7 +182,10 @@ fun AppNavGraph(
                 onOpenNote = { noteId ->
                     navController.navigate(Routes.ViewNote.pass(noteId))
                 },
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onCreateNote = { folderId ->
+                    navController.navigate(Routes.CreateNote.pass(folderId))
+                }
             )
         }
 

@@ -61,7 +61,7 @@ class NotesViewModel(
                 ownerId = _currentUserId.value
             )
             if (note != null) {
-                refreshNotes(token)
+                refreshNotesLocally()
                 onCreated(note.id)
             }
         }
@@ -182,7 +182,7 @@ class NotesViewModel(
                 ownerId = _currentUserId.value
             )
             if (note != null) {
-                refreshNotes(token)
+                refreshNotesLocally()
                 onCreated(note.id)
             }
         }

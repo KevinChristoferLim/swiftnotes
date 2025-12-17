@@ -11,15 +11,21 @@ import com.example.wifty.viewmodel.NotesViewModel
 fun CreateNoteScreen(
     viewModel: NotesViewModel,
     authViewModel: AuthViewModel,
+    folderId: String? = null,
     onCreated: (String) -> Unit
 ) {
     val authState by authViewModel.uiState.collectAsState()
     
-    // Automatically create a note when entering this screen
-    LaunchedEffect(authState.token) {
+    LaunchedEffect(authState.token, folderId) {
         authState.token?.let { token ->
-            viewModel.createNote(token) { newId ->
-                onCreated(newId)   // Navigate to ViewNoteScreen(newId)
+            if (folderId != null) {
+                viewModel.createNoteInFolder(token, folderId) { newId ->
+                    onCreated(newId)
+                }
+            } else {
+                viewModel.createNote(token) { newId ->
+                    onCreated(newId)
+                }
             }
         }
     }

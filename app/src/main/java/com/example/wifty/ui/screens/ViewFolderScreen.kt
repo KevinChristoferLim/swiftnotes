@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,17 +38,21 @@ fun ViewFolderScreen(
     val folder = remember(folders, folderId) { folders.find { it.id == folderId } }
 
     val allNotes by notesVM.notes.collectAsState()
+    val authState by authViewModel.uiState.collectAsState()
 
-    //  Search state
     var searchQuery by remember { mutableStateOf("") }
-    var searchType by remember { mutableStateOf("Notes") }
 
-    // Filter notes belonging to this folder
-    val notesInFolder = remember(allNotes, folder) {
-        folder?.let { f -> allNotes.filter { f.noteIds.contains(it.id) } } ?: emptyList()
+    LaunchedEffect(authState.token) {
+        authState.token?.let {
+            folderVM.refreshFolders()
+            notesVM.refreshNotes(it)
+        }
     }
 
-    // Apply search filter (same logic as FolderListScreen)
+    val notesInFolder = remember(allNotes, folder) {
+        folder?.noteIds?.let { ids -> allNotes.filter { ids.contains(it.id) } } ?: emptyList()
+    }
+
     val filteredNotes = remember(notesInFolder, searchQuery) {
         if (searchQuery.isBlank()) notesInFolder
         else notesInFolder.filter { it.title.contains(searchQuery, ignoreCase = true) }
@@ -57,16 +63,27 @@ fun ViewFolderScreen(
         topBar = {
             TopNavBarWithBack(
                 title = folder?.title ?: "Folder",
-                subtitle = folder?.tag ?: "Tag: —",
+                subtitle = folder?.description ?: "No description",
                 onBack = onBack,
                 showProfile = true,
                 onOpenProfile = onOpenProfile,
-                onSearchClick = { query, type ->
-                    searchQuery = query
-                    searchType = "Notes"
-                }
+                onSearchClick = { query, _ -> searchQuery = query }
             )
         },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    authState.token?.let { token ->
+                        notesVM.createNoteInFolder(token, folderId) { newNoteId ->
+                            onOpenNote(newNoteId)
+                        }
+                    }
+                },
+                containerColor = Color(0xFF4B63FF)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Create Note", tint = Color.White)
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -74,10 +91,6 @@ fun ViewFolderScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-
-            // ---------------------------------------------------
-            // Folder Header Card
-            // ---------------------------------------------------
             Card(
                 shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -100,7 +113,7 @@ fun ViewFolderScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            folder?.tag ?: "Tag: —",
+                            folder?.description ?: "No description",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.85f)
                         )
@@ -116,9 +129,6 @@ fun ViewFolderScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // ---------------------------------------------------
-            // Notes List (or Empty State)
-            // ---------------------------------------------------
             if (filteredNotes.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -135,7 +145,7 @@ fun ViewFolderScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(filteredNotes) { note ->
+                    items(filteredNotes, key = { it.id }) { note ->
                         FolderNoteRow(note) { onOpenNote(note.id) }
                     }
                 }

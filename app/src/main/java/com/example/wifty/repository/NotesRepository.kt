@@ -74,13 +74,10 @@ class NotesRepository(private val apiService: ApiService = RetrofitClient.apiSer
                 mutex.withLock { notes[createdNote.id] = createdNote }
                 createdNote
             } else {
-                // Fallback to local if backend fails (optional strategy)
-                mutex.withLock { notes[id] = note }
-                note
+                null
             }
         } catch (e: Exception) {
-            mutex.withLock { notes[id] = note }
-            note
+            null
         }
     }
 
@@ -121,17 +118,6 @@ class NotesRepository(private val apiService: ApiService = RetrofitClient.apiSer
     suspend fun insert(note: Note) {
         mutex.withLock {
             notes[note.id] = note
-        }
-    }
-
-    suspend fun moveNoteToFolder(token: String, noteId: String, folderId: String?) {
-        mutex.withLock {
-            val note = notes[noteId] ?: return
-            val updated = note.copy(
-                folderId = folderId,
-                updatedAt = System.currentTimeMillis()
-            )
-            updateNote(token, updated)
         }
     }
 
