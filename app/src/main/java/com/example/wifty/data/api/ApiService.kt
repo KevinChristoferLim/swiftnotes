@@ -40,6 +40,11 @@ data class ForgotPasswordRequest(
     val email: String
 )
 
+data class ChangePasswordRequest(
+    val currentPassword: String,
+    val newPassword: String
+)
+
 interface ApiService {
     @POST("/api/auth/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
@@ -61,4 +66,10 @@ interface ApiService {
         @Part("email") email: RequestBody,
         @Part profilePicture: MultipartBody.Part? // Nullable if no image is uploaded
     ): Response<LoginResponse> // Assuming the response is similar to LoginResponse
+
+    @PUT("/api/auth/change-password")
+    suspend fun changePassword(
+        @Header("Authorization") token: String,
+        @Body request: ChangePasswordRequest
+    ): Response<Unit> // Assuming the endpoint returns a simple success/fail response
 }

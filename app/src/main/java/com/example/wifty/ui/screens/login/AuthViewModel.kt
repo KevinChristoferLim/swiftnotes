@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wifty.data.SecureTokenManager
 import com.example.wifty.data.api.ApiService
+import com.example.wifty.data.api.ChangePasswordRequest
 import com.example.wifty.data.api.LoginRequest
 import com.example.wifty.data.api.SignUpRequest
 import com.example.wifty.data.api.ForgotPasswordRequest
@@ -24,7 +25,8 @@ data class AuthUiState(
     val error: String? = null,
     val token: String? = null,
     val isLoggedIn: Boolean = false,
-    val user: UserData? = null
+    val user: UserData? = null,
+    val passwordChanged: Boolean = false
 )
 
 class AuthViewModel(private val apiService: ApiService, application: Application) : AndroidViewModel(application) {
@@ -180,6 +182,28 @@ class AuthViewModel(private val apiService: ApiService, application: Application
         }
     }
 
+    fun changePassword(currentPassword: String, newPassword: String) {
+        val token = _uiState.value.token
+        if (token == null) {
+            _uiState.value = _uiState.value.copy(error = "Not authenticated")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+                val response = apiService.changePassword("Bearer $token", ChangePasswordRequest(currentPassword, newPassword))
+                if (response.isSuccessful) {
+                    _uiState.value = _uiState.value.copy(isLoading = false, passwordChanged = true)
+                } else {
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = "Failed to change password: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = "Network error: ${e.message}")
+            }
+        }
+    }
+
 
     fun logout() {
         secureTokenManager.clearAuthData()
@@ -247,6 +271,10 @@ class AuthViewModel(private val apiService: ApiService, application: Application
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+    
+    fun resetPasswordChangedState() {
+        _uiState.value = _uiState.value.copy(passwordChanged = false)
     }
 
     private fun validateEmail(email: String): Boolean {
