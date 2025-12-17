@@ -10,11 +10,13 @@ data class Note(
     val title: String = "",
     val content: String = "",
     val folderId: String? = null,
+    val ownerId: String? = null, // Added ownerId to track ownership
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val colorLong: Long = 0xFF4B63FFu.toLong(),
     val isPinned: Boolean = false,
     val isLocked: Boolean = false,
     val checklist: List<ChecklistItem> = emptyList(),
-    val reminder: ReminderData? = null
+    val reminder: ReminderData? = null,
+    val collaborators: List<String> = emptyList() // List of collaborator emails
 )

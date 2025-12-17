@@ -10,6 +10,9 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import android.net.Uri
 import com.example.wifty.ui.screens.modules.ReminderData
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 
 class NotesViewModel(
     private val repo: NotesRepository = NotesRepository()
@@ -18,21 +21,55 @@ class NotesViewModel(
     private val _notes = MutableStateFlow<List<Note>>(emptyList())
     val notes: StateFlow<List<Note>> = _notes
 
-    init {
-        refreshNotes()
+    private val _currentUserId = MutableStateFlow<String?>(null)
+    private val _currentUserEmail = MutableStateFlow<String?>(null)
+    private var _token: String? = null
+
+    val ownedNotes: StateFlow<List<Note>> = combine(_notes, _currentUserId) { notes, userId ->
+        if (userId == null) notes else notes.filter { it.ownerId == userId }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val sharedNotes: StateFlow<List<Note>> = combine(_notes, _currentUserId, _currentUserEmail) { notes, userId, email ->
+        if (userId == null || email == null) emptyList() 
+        else notes.filter { it.ownerId != userId && it.collaborators.contains(email) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setCurrentUser(id: String?, email: String?, token: String?) {
+        _currentUserId.value = id
+        _currentUserEmail.value = email
+        _token = token
     }
 
-    fun refreshNotes() {
+    fun refreshNotes(token: String) {
+        _token = token
         viewModelScope.launch {
-            _notes.value = repo.getAllNotes()
+            _notes.value = repo.getAllNotes(token)
         }
     }
 
-    fun createNote(onCreated: (String) -> Unit = {}) {
+    fun addCollaboratorToNote(token: String, noteId: String, email: String) {
         viewModelScope.launch {
-            val note = repo.createNote()
-            refreshNotes()
-            onCreated(note.id)
+            repo.addCollaborator(token, noteId, email)
+            refreshNotes(token) 
+        }
+    }
+
+    fun createNote(token: String, onCreated: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            val note = repo.createNote(
+                token = token,
+                ownerId = _currentUserId.value
+            )
+            if (note != null) {
+                refreshNotes(token)
+                onCreated(note.id)
+            }
+        }
+    }
+
+    private fun refreshNotesLocally() {
+        viewModelScope.launch {
+            _notes.value = repo.getAllNotesLocally() 
         }
     }
 
@@ -42,112 +79,112 @@ class NotesViewModel(
         }
     }
 
-    fun updateNote(note: Note) {
+    fun updateNote(token: String, note: Note) {
         viewModelScope.launch {
-            repo.updateNote(note)
-            refreshNotes()
+            repo.updateNote(token, note)
+            refreshNotesLocally()
         }
     }
 
-    fun deleteNote(id: String) {
+    fun deleteNote(token: String, id: String) {
         viewModelScope.launch {
-            repo.deleteNote(id)
-            refreshNotes()
+            repo.deleteNote(token, id)
+            refreshNotesLocally()
         }
     }
 
-    fun copyNote(note: Note) {
+    fun copyNote(token: String, note: Note) {
         viewModelScope.launch {
             val newNote = note.copy(
                 id = UUID.randomUUID().toString(),
                 title = note.title + " (copy)",
-                updatedAt = System.currentTimeMillis()
+                updatedAt = System.currentTimeMillis(),
+                ownerId = _currentUserId.value
             )
             repo.insert(newNote)
-            refreshNotes()
+            repo.createNote(token, newNote.title, newNote.content, newNote.colorLong, newNote.folderId, newNote.ownerId)
+            refreshNotes(token)
         }
     }
 
-    fun togglePin(noteId: String) {
-        val updatedNotes = _notes.value.map {
-            if (it.id == noteId) it.copy(isPinned = !it.isPinned) else it
-        }
-        _notes.value = updatedNotes
-        // Add repo update here if persistence needed
-    }
-
-    fun toggleLock(noteId: String) {
-        val updatedNotes = _notes.value.map {
-            if (it.id == noteId) it.copy(isLocked = !it.isLocked) else it
-        }
-        _notes.value = updatedNotes
-        // Add repo update here if persistence needed
-    }
-
-    fun addReminderToNote(noteId: String, reminder: ReminderData) {
+    fun togglePin(token: String, noteId: String) {
         viewModelScope.launch {
             val note = repo.getNote(noteId)
             if (note != null) {
-                val updatedNote = note.copy(reminder = reminder, updatedAt = System.currentTimeMillis())
-                repo.updateNote(updatedNote)
-                refreshNotes()
+                updateNote(token, note.copy(isPinned = !note.isPinned))
             }
         }
     }
 
-    fun addCollaboratorToNote(noteId: String, email: String) {
-        // TODO: Implement backend call
-    }
-
-    // ----------------------------------------------------
-    //  ATTACHMENTS (no Note model changes required!)
-    // ----------------------------------------------------
-
-    fun attachImageToNote(noteId: String, uri: Uri) {
-        val note = _notes.value.find { it.id == noteId } ?: return
-
-        // append attachment marker into content (ViewNoteScreen parses it)
-        val updatedContent = note.content + "\n[[IMAGE::${uri}]]"
-
-        updateNote(
-            note.copy(
-                content = updatedContent,
-                updatedAt = System.currentTimeMillis()
-            )
-        )
-    }
-
-    fun attachFileToNote(noteId: String, uri: Uri) {
-        val note = _notes.value.find { it.id == noteId } ?: return
-
-        val updatedContent = note.content + "\n[[FILE::${uri}]]"
-
-        updateNote(
-            note.copy(
-                content = updatedContent,
-                updatedAt = System.currentTimeMillis()
-            )
-        )
-    }
-
-    fun moveNoteToFolder(noteId: String, folderId: String?) {
+    fun toggleLock(token: String, noteId: String) {
         viewModelScope.launch {
-            repo.moveNoteToFolder(noteId, folderId)
-            refreshNotes()
+             val note = repo.getNote(noteId)
+             if (note != null) {
+                 updateNote(token, note.copy(isLocked = !note.isLocked))
+             }
         }
     }
 
-    fun createNoteInFolder(folderId: String, onCreated: (String) -> Unit = {}) {
+    fun addReminderToNote(token: String, noteId: String, reminder: ReminderData) {
+        viewModelScope.launch {
+            val note = repo.getNote(noteId)
+            if (note != null) {
+                val updatedNote = note.copy(reminder = reminder, updatedAt = System.currentTimeMillis())
+                repo.updateNote(token, updatedNote)
+                refreshNotesLocally()
+            }
+        }
+    }
+
+    fun attachImageToNote(token: String, noteId: String, uri: Uri) {
+        viewModelScope.launch {
+            val note = repo.getNote(noteId) ?: return@launch
+            val updatedContent = note.content + "\n[[IMAGE::${uri}]]"
+            updateNote(
+                token,
+                note.copy(
+                    content = updatedContent,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    fun attachFileToNote(token: String, noteId: String, uri: Uri) {
+        viewModelScope.launch {
+            val note = repo.getNote(noteId) ?: return@launch
+            val updatedContent = note.content + "\n[[FILE::${uri}]]"
+            updateNote(
+                token,
+                note.copy(
+                    content = updatedContent,
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    fun moveNoteToFolder(token: String, noteId: String, folderId: String?) {
+        viewModelScope.launch {
+            repo.moveNoteToFolder(token, noteId, folderId)
+            refreshNotesLocally()
+        }
+    }
+
+    fun createNoteInFolder(token: String, folderId: String, onCreated: (String) -> Unit = {}) {
         viewModelScope.launch {
             val note = repo.createNote(
+                token = token,
                 initialTitle = "",
                 initialContent = "",
                 colorLong = 0xFF4B63FFu.toLong(),
-                folderId = folderId
+                folderId = folderId,
+                ownerId = _currentUserId.value
             )
-
-            refreshNotes()
-            onCreated(note.id)
+            if (note != null) {
+                refreshNotes(token)
+                onCreated(note.id)
+            }
         }
     }
 }

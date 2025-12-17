@@ -29,18 +29,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.wifty.model.Note
+import com.example.wifty.ui.screens.login.AuthViewModel
 import com.example.wifty.ui.screens.modules.*
 import com.example.wifty.viewmodel.NotesViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import java.io.FileNotFoundException
-import androidx.compose.ui.input.key.type
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ViewNoteScreen(
     noteId: String,
+    authViewModel: AuthViewModel,
     viewModel: NotesViewModel,
     onClose: () -> Unit
 ) {
@@ -63,10 +64,12 @@ fun ViewNoteScreen(
     var showReminderDialog by remember { mutableStateOf(false) }
     var showCollaboratorDialog by remember { mutableStateOf(false) }
 
+    val authState by authViewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     fun commitAndAssign() {
-        val updated = commitBlocksToModelAndSave(note, title.text, blocks, colorLong, viewModel)
+        val token = authState.token ?: return
+        val updated = commitBlocksToModelAndSave(token, note, title.text, blocks, colorLong, viewModel)
         if (updated != null) note = updated
     }
 
@@ -206,8 +209,11 @@ fun ViewNoteScreen(
                         Icon(Icons.Default.Notifications, contentDescription = "Add reminder")
                     }
                     TextButton(onClick = {
-                        val updated = commitBlocksToModelAndSave(note, title.text, blocks, colorLong, viewModel)
-                        if (updated != null) note = updated
+                        val token = authState.token
+                        if (token != null) {
+                            val updated = commitBlocksToModelAndSave(token, note, title.text, blocks, colorLong, viewModel)
+                            if (updated != null) note = updated
+                        }
                         onClose()
                     }) {
                         Text("Done")
@@ -220,7 +226,9 @@ fun ViewNoteScreen(
             ReminderDialog(
                 onDismiss = { showReminderDialog = false },
                 onSave = { reminder ->
-                    viewModel.addReminderToNote(noteId, reminder)
+                    authState.token?.let { token ->
+                        viewModel.addReminderToNote(token, noteId, reminder)
+                    }
                     showReminderDialog = false
                 }
             )
@@ -229,7 +237,9 @@ fun ViewNoteScreen(
             CollaboratorDialog(
                 onDismiss = { showCollaboratorDialog = false },
                 onConfirm = { email ->
-                    viewModel.addCollaboratorToNote(noteId, email)
+                    authState.token?.let { token ->
+                        viewModel.addCollaboratorToNote(token, noteId, email)
+                    }
                     showCollaboratorDialog = false
                 }
             )
@@ -431,7 +441,9 @@ fun ViewNoteScreen(
                         showMoreMenu = false
                     },
                     onCopyClick = {
-                        note?.let { viewModel.copyNote(it) }
+                        authState.token?.let { token ->
+                            note?.let { viewModel.copyNote(token, it) }
+                        }
                         showMoreMenu = false
                     },
                     onCollaboratorClick = {
@@ -447,9 +459,11 @@ fun ViewNoteScreen(
             if (showDeleteDialog) {
                 DeleteConfirmationDialog(
                     onConfirm = {
-                        note?.let {
-                            viewModel.deleteNote(it.id)
-                            onClose()
+                        authState.token?.let { token ->
+                            note?.let {
+                                viewModel.deleteNote(token, it.id)
+                                onClose()
+                            }
                         }
                         showDeleteDialog = false
                     },

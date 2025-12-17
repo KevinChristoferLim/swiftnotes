@@ -47,6 +47,7 @@ fun AppNavGraph(
         // ---- Home Screen ----
         composable(Routes.Home.route) {
             HomeScreen(
+                authViewModel = authViewModel,
                 notesVM = notesVM,
                 folderVM = folderVM,
                 onCreateNewNote = { navController.navigate(Routes.CreateNote.route) },
@@ -117,6 +118,7 @@ fun AppNavGraph(
         composable(Routes.NotesList.route) {
             NotesListScreen(
                 viewModel = notesVM,
+                authViewModel = authViewModel,
                 folderViewModel = folderVM,
                 onCreateNewNote = {
                     navController.navigate(Routes.CreateNote.route)
@@ -137,6 +139,7 @@ fun AppNavGraph(
         composable(Routes.CreateNote.route) {
             CreateNoteScreen(
                 viewModel = notesVM,
+                authViewModel = authViewModel,
                 onCreated = { newId ->
                     navController.navigate(Routes.ViewNote.pass(newId)) {
                         popUpTo(Routes.CreateNote.route) { inclusive = true
@@ -151,6 +154,7 @@ fun AppNavGraph(
             val id = backStack.arguments?.getString("noteId") ?: ""
             ViewNoteScreen(
                 noteId = id,
+                authViewModel = authViewModel,
                 viewModel = notesVM,
                 onClose = { navController.popBackStack() }
             )
@@ -161,6 +165,7 @@ fun AppNavGraph(
             FolderListScreen(
                 notesVM = notesVM,
                 viewModel = folderVM,
+                authViewModel = authViewModel,
                 onCreateFolder = { navController.navigate(Routes.CreateFolder.route) },
                 onOpenFolder = { folderId ->
                     navController.navigate(Routes.ViewFolder.pass(folderId))
@@ -188,9 +193,10 @@ fun AppNavGraph(
                 folderId = id,
                 folderVM = folderVM,
                 notesVM = notesVM,
+                authViewModel = authViewModel,
                 onBack = { navController.popBackStack() },
                 onOpenNote = { noteId -> navController.navigate(Routes.ViewNote.pass(noteId)) },
-                onOpenProfile = { navController.navigate(Routes.Profile.route) } // <--- pass profile lambda
+                onOpenProfile = { navController.navigate(Routes.Profile.route) }
             )
         }
     }
