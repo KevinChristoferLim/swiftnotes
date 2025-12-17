@@ -33,9 +33,10 @@ fun scheduleAutosave(
  * Returns updated Note if successful, or null otherwise.
  *
  * This function normalizes blocks (so Text doesn't embed checklist markers),
- * converts to storage content string and updates note via viewModel.updateNote(updated).
+ * converts to storage content string and updates note via viewModel.updateNote(token, updated).
  */
 fun commitBlocksToModelAndSave(
+    token: String,
     originalNote: Note?,
     titleText: String,
     blocks: List<Block>,
@@ -62,7 +63,7 @@ fun commitBlocksToModelAndSave(
     )
 
     // persist via viewModel (fire & forget; viewModel implementation handles threading)
-    viewModel.updateNote(updated)
+    viewModel.updateNote(token, updated)
 
     return updated
 }

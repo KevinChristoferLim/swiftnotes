@@ -126,6 +126,7 @@ fun ProfileScreen(
             message = "Are you sure you want to log out from the application?",
             onConfirm = {
                 showLogoutDialog = false
+                authViewModel.logout()
                 onLogout()
             },
             onDismiss = { showLogoutDialog = false }

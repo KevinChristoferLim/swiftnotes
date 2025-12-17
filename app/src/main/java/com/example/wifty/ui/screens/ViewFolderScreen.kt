@@ -17,6 +17,7 @@ import com.example.wifty.model.Note
 import com.example.wifty.viewmodel.FolderViewModel
 import com.example.wifty.viewmodel.NotesViewModel
 import com.example.wifty.ui.screens.modules.TopNavBarWithBack
+import com.example.wifty.ui.screens.login.AuthViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -26,6 +27,7 @@ fun ViewFolderScreen(
     folderId: String,
     folderVM: FolderViewModel,
     notesVM: NotesViewModel,
+    authViewModel: AuthViewModel,
     onBack: () -> Unit,
     onOpenNote: (String) -> Unit,
     onOpenProfile: () -> Unit

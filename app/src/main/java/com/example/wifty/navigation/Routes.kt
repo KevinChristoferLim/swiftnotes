@@ -10,6 +10,8 @@ sealed class Routes(val route: String) {
 
     object EditProfile : Routes("edit_profile")
 
+    object ChangePassword : Routes("change_password")
+
     object NotesList : Routes("notes_list")
     object CreateNote : Routes("create_note")
 

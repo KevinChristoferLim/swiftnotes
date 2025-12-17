@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.IntOffset
 import com.example.wifty.viewmodel.FolderViewModel
 import com.example.wifty.viewmodel.NotesViewModel
 import com.example.wifty.ui.screens.modules.TopNavBarWithBack
+import com.example.wifty.ui.screens.login.AuthViewModel
 import kotlin.math.absoluteValue
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,6 +33,7 @@ import kotlin.math.absoluteValue
 fun FolderListScreen(
     viewModel: FolderViewModel,
     notesVM: NotesViewModel,
+    authViewModel: AuthViewModel,
     onCreateFolder: () -> Unit,
     onOpenFolder: (String) -> Unit,
     onOpenNote: (String) -> Unit,
@@ -39,6 +41,7 @@ fun FolderListScreen(
 ) {
     val folders by viewModel.folders.collectAsState()
     val notes by notesVM.notes.collectAsState()
+    val authState by authViewModel.uiState.collectAsState()
 
     // --- Search State ---
     var searchQuery by remember { mutableStateOf("") }
@@ -163,9 +166,11 @@ fun FolderListScreen(
                             .clickable {
                                 popupVisible = false
                                 selectedFolderId?.let { folderId ->
-                                    notesVM.createNoteInFolder(folderId) { newNoteId ->
-                                        viewModel.addNoteToFolder(folderId, newNoteId)
-                                        onOpenNote(newNoteId)
+                                    authState.token?.let { token ->
+                                        notesVM.createNoteInFolder(token, folderId) { newNoteId ->
+                                            viewModel.addNoteToFolder(folderId, newNoteId)
+                                            onOpenNote(newNoteId)
+                                        }
                                     }
                                 }
                             }

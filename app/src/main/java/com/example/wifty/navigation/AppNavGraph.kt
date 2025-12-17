@@ -8,11 +8,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.wifty.data.api.RetrofitClient
+import com.example.wifty.ui.screens.AccountManagement.ChangePasswordScreen
 import com.example.wifty.ui.screens.AccountManagement.EditProfileScreen
 import com.example.wifty.ui.screens.AccountManagement.ProfileScreen
-import com.example.wifty.ui.screens.AccountManagement.OTP.ForgotPasswordScreen
-import com.example.wifty.ui.screens.AccountManagement.OTP.OtpVerificationScreen
-import com.example.wifty.ui.screens.AccountManagement.OTP.CreateNewPasswordScreen
 import com.example.wifty.ui.screens.login.AuthScreen
 import com.example.wifty.ui.screens.login.AuthViewModel
 import com.example.wifty.ui.screens.login.AuthViewModelFactory
@@ -49,6 +47,7 @@ fun AppNavGraph(
         // ---- Home Screen ----
         composable(Routes.Home.route) {
             HomeScreen(
+                authViewModel = authViewModel,
                 notesVM = notesVM,
                 folderVM = folderVM,
                 onCreateNewNote = { navController.navigate(Routes.CreateNote.route) },
@@ -88,7 +87,7 @@ fun AppNavGraph(
                     }
                 },
                 onNavigateToChangePassword = {
-                    navController.navigate(Routes.ForgotPassword.route)
+                    navController.navigate(Routes.ChangePassword.route)
                 },
                 onDeleteAccount = {
                     navController.navigate(Routes.Login.route) {
@@ -106,46 +105,20 @@ fun AppNavGraph(
             )
         }
 
-        // ================= OTP / PASSWORD FLOW =================
-
-        // 1. Forgot Password (Enter Email)
-        composable(Routes.ForgotPassword.route) {
-            ForgotPasswordScreen(
+        // ---- Change Password Screen ----
+        composable(Routes.ChangePassword.route) {
+            ChangePasswordScreen(
+                authViewModel = authViewModel,
                 onBack = { navController.popBackStack() },
-                onSubmit = {
-                    navController.navigate(Routes.OtpVerification.route)
-                }
+                onPasswordChanged = { navController.popBackStack() }
             )
         }
-
-        // 2. OTP Verification (Enter Code)
-        composable(Routes.OtpVerification.route) {
-            OtpVerificationScreen(
-                onBack = { navController.popBackStack() },
-                onSubmit = {
-                    navController.navigate(Routes.CreateNewPassword.route)
-                }
-            )
-        }
-
-        // 3. Create New Password (Reset & Success)
-        composable(Routes.CreateNewPassword.route) {
-            CreateNewPasswordScreen(
-                onBack = { navController.popBackStack() },
-                onSuccess = {
-                    navController.navigate(Routes.Login.route) {
-                        popUpTo(Routes.NotesList.route) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        // =======================================================
 
         // ---- NOTES LIST ----
         composable(Routes.NotesList.route) {
             NotesListScreen(
                 viewModel = notesVM,
+                authViewModel = authViewModel,
                 folderViewModel = folderVM,
                 onCreateNewNote = {
                     navController.navigate(Routes.CreateNote.route)
@@ -166,6 +139,7 @@ fun AppNavGraph(
         composable(Routes.CreateNote.route) {
             CreateNoteScreen(
                 viewModel = notesVM,
+                authViewModel = authViewModel,
                 onCreated = { newId ->
                     navController.navigate(Routes.ViewNote.pass(newId)) {
                         popUpTo(Routes.CreateNote.route) { inclusive = true
@@ -180,6 +154,7 @@ fun AppNavGraph(
             val id = backStack.arguments?.getString("noteId") ?: ""
             ViewNoteScreen(
                 noteId = id,
+                authViewModel = authViewModel,
                 viewModel = notesVM,
                 onClose = { navController.popBackStack() }
             )
@@ -190,6 +165,7 @@ fun AppNavGraph(
             FolderListScreen(
                 notesVM = notesVM,
                 viewModel = folderVM,
+                authViewModel = authViewModel,
                 onCreateFolder = { navController.navigate(Routes.CreateFolder.route) },
                 onOpenFolder = { folderId ->
                     navController.navigate(Routes.ViewFolder.pass(folderId))
@@ -217,9 +193,10 @@ fun AppNavGraph(
                 folderId = id,
                 folderVM = folderVM,
                 notesVM = notesVM,
+                authViewModel = authViewModel,
                 onBack = { navController.popBackStack() },
                 onOpenNote = { noteId -> navController.navigate(Routes.ViewNote.pass(noteId)) },
-                onOpenProfile = { navController.navigate(Routes.Profile.route) } // <--- pass profile lambda
+                onOpenProfile = { navController.navigate(Routes.Profile.route) }
             )
         }
     }

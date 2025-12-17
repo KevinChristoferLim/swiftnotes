@@ -1,8 +1,11 @@
 package com.example.wifty.ui.screens.notes
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
@@ -16,22 +19,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Popup
 import com.example.wifty.model.Note
+import com.example.wifty.ui.screens.login.AuthViewModel
 import com.example.wifty.ui.screens.modules.TopNavBar
 import com.example.wifty.viewmodel.FolderViewModel
 import com.example.wifty.viewmodel.NotesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
 
 // --- Helper: Relative time ---
 fun formatRelativeTime(timestamp: Long): String {
@@ -53,13 +55,23 @@ fun formatRelativeTime(timestamp: Long): String {
 @Composable
 fun NotesListScreen(
     viewModel: NotesViewModel,
+    authViewModel: AuthViewModel,
     folderViewModel: FolderViewModel,
     onCreateNewNote: () -> Unit,
     onOpenNote: (String) -> Unit,
     onOpenFolders: () -> Unit,
     onOpenProfile: () -> Unit
 ) {
-    val notes by viewModel.notes.collectAsState()
+    val authState by authViewModel.uiState.collectAsState()
+    
+    // Update current user and refresh notes in NotesViewModel
+    LaunchedEffect(authState.user, authState.token) {
+        viewModel.setCurrentUser(authState.user?.id, authState.user?.email, authState.token)
+        authState.token?.let { viewModel.refreshNotes(it) }
+    }
+
+    val ownedNotes by viewModel.ownedNotes.collectAsState()
+    val sharedNotes by viewModel.sharedNotes.collectAsState()
     val folders by folderViewModel.folders.collectAsState()
 
     // --- Search State ---
@@ -71,14 +83,13 @@ fun NotesListScreen(
     var showMoveDialog by remember { mutableStateOf(false) }
     var menuOffset by remember { mutableStateOf(Offset.Zero) }
 
-// --- Compute filtered lists directly in composable ---
-    val filteredFolders = if (searchType == "Folders" && searchQuery.isNotBlank()) {
-        folders.filter { it.title.contains(searchQuery, ignoreCase = true) }
-    } else folders
+    val filteredOwnedNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
+        ownedNotes.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    } else ownedNotes
 
-    val filteredNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
-        notes.filter { it.title.contains(searchQuery, ignoreCase = true) }
-    } else notes
+    val filteredSharedNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
+        sharedNotes.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    } else sharedNotes
 
     Box(
         modifier = Modifier
@@ -114,7 +125,7 @@ fun NotesListScreen(
                     searchType = "Notes",
                     onSearchClick = { query, type ->
                         searchQuery = query
-                        searchType = "Folders"
+                        searchType = "Notes"
                     },
                     onOpenFolders = onOpenFolders,
                     onOpenProfile = onOpenProfile
@@ -129,16 +140,62 @@ fun NotesListScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(notes) { note ->
-                        NoteCard(
-                            note = note,
-                            onClick = { onOpenNote(note.id) },
-                            onLongPress = { pressOffset ->
-                                selectedNote = note
-                                menuOffset = pressOffset
-                                menuExpanded = true
-                            }
-                        )
+                    // --- My Notes Section ---
+                    if (filteredOwnedNotes.isNotEmpty()) {
+                        item(span = { GridItemSpan(2) }) {
+                            Text(
+                                "My Notes",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                ),
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                        items(filteredOwnedNotes) { note ->
+                            NoteCard(
+                                note = note,
+                                onClick = { onOpenNote(note.id) },
+                                onLongPress = { pressOffset ->
+                                    selectedNote = note
+                                    menuOffset = pressOffset
+                                    menuExpanded = true
+                                }
+                            )
+                        }
+                    }
+
+                    // --- Shared with Me Section ---
+                    if (filteredSharedNotes.isNotEmpty()) {
+                        item(span = { GridItemSpan(2) }) {
+                            Text(
+                                "Shared with Me",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                ),
+                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                            )
+                        }
+                        items(filteredSharedNotes) { note ->
+                            NoteCard(
+                                note = note,
+                                onClick = { onOpenNote(note.id) },
+                                onLongPress = { pressOffset ->
+                                    selectedNote = note
+                                    menuOffset = pressOffset
+                                    menuExpanded = true
+                                }
+                            )
+                        }
+                    }
+                    
+                    if (filteredOwnedNotes.isEmpty() && filteredSharedNotes.isEmpty()) {
+                         item(span = { GridItemSpan(2) }) {
+                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                 Text("No notes found", color = Color.Gray)
+                             }
+                         }
                     }
                 }
             }
@@ -166,7 +223,10 @@ fun NotesListScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    viewModel.deleteNote(selectedNote!!.id)
+                                    val token = authState.token
+                                    if (token != null) {
+                                        viewModel.deleteNote(token, selectedNote!!.id)
+                                    }
                                     menuExpanded = false
                                 }
                                 .padding(12.dp)
@@ -248,7 +308,7 @@ fun NoteCard(
     onClick: () -> Unit,
     onLongPress: (Offset) -> Unit
 ) {
-    val timeLabel = remember(note.updatedAt) { com.example.wifty.ui.screens.notes.formatRelativeTime(note.updatedAt) }
+    val timeLabel = remember(note.updatedAt) { formatRelativeTime(note.updatedAt) }
     val backgroundColor = if (note.colorLong == 0L) Color(0xFFD3E3FD) else Color(note.colorLong)
 
     Box(
