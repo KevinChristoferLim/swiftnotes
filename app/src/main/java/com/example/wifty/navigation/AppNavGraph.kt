@@ -1,6 +1,8 @@
 package com.example.wifty.navigation
 
+import android.app.Application
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -25,7 +27,8 @@ fun AppNavGraph(
     notesVM: NotesViewModel,
     folderVM: FolderViewModel
 ) {
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(RetrofitClient.apiService))
+    val application = LocalContext.current.applicationContext as Application
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(RetrofitClient.apiService, application))
 
     NavHost(
         navController = navController,

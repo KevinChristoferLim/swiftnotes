@@ -52,6 +52,7 @@ dependencies {
     implementation("com.github.skydoves:colorpicker-compose:1.1.2")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil:2.6.0")
+    implementation("androidx.security:security-crypto:1.0.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
