@@ -14,6 +14,7 @@ import com.example.wifty.viewmodel.NotesViewModel
 fun CreateNoteScreen(
     viewModel: NotesViewModel,
     authViewModel: AuthViewModel,
+    folderId: String? = null,
     onCreated: (String) -> Unit
 ) {
     val authState by authViewModel.uiState.collectAsState()

@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.unit.IntOffset
+import com.example.wifty.model.Folder
 import com.example.wifty.viewmodel.FolderViewModel
 import com.example.wifty.viewmodel.NotesViewModel
 import com.example.wifty.ui.screens.modules.TopNavBarWithBack
@@ -38,31 +39,33 @@ fun FolderListScreen(
     onOpenFolder: (String) -> Unit,
     onOpenNote: (String) -> Unit,
     onBack: () -> Unit,
+    onCreateNote: (String) -> Unit
 ) {
     val folders by viewModel.folders.collectAsState()
-    val notes by notesVM.notes.collectAsState()
     val authState by authViewModel.uiState.collectAsState()
 
     // --- Search State ---
     var searchQuery by remember { mutableStateOf("") }
-    var searchType by remember { mutableStateOf("Folders") }
 
     // --- Popup State ---
     var popupVisible by remember { mutableStateOf(false) }
     var popupOffset by remember { mutableStateOf(Offset.Zero) }
-    var selectedFolderId by remember { mutableStateOf<String?>(null) }
+    var selectedFolder by remember { mutableStateOf<Folder?>(null) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDescriptionDialog by remember { mutableStateOf(false) }
 
     // --- Compute filtered lists directly in composable ---
-    val filteredFolders = if (searchType == "Folders" && searchQuery.isNotBlank()) {
+    val filteredFolders = if (searchQuery.isNotBlank()) {
         folders.filter { it.title.contains(searchQuery, ignoreCase = true) }
     } else folders
 
-    val filteredNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
-        notes.filter { it.title.contains(searchQuery, ignoreCase = true) }
-    } else notes
-
+    LaunchedEffect(authState.token, authState.user) {
+        authState.token?.let {
+            viewModel.setCurrentUser(authState.user?.id, it)
+            viewModel.refreshFolders()
+        }
+    }
+    
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -74,7 +77,6 @@ fun FolderListScreen(
                 onOpenProfile = { /* open profile */ },
                 onSearchClick = { query, type ->
                     searchQuery = query
-                    searchType = "Folders"
                 }
             )
         },
@@ -103,14 +105,14 @@ fun FolderListScreen(
                     FolderCard(
                         name = folder.title,
                         hashtag = folder.tag,
-                        notesCount = noteCount,
+                        notesCount = folder.noteIds.size,
                         gradientColors = listOf(
-                            Color(folder.colorLong),
-                            Color(folder.colorLong).copy(alpha = 0.7f)
+                            Color(folder.colorLong.toInt()),
+                            Color(folder.colorLong.toInt()).copy(alpha = 0.7f)
                         ),
                         onClick = { onOpenFolder(folder.id) },
                         onLongPress = { pressOffset ->
-                            selectedFolderId = folder.id
+                            selectedFolder = folder
                             popupOffset = pressOffset
                             popupVisible = true
                         }
@@ -123,7 +125,7 @@ fun FolderListScreen(
     // ------------------------------
     // Popup Menu
     // ------------------------------
-    if (popupVisible && selectedFolderId != null) {
+    if (popupVisible && selectedFolder != null) {
         Popup(
             alignment = Alignment.TopStart,
             offset = IntOffset(popupOffset.x.toInt(), popupOffset.y.toInt()),
@@ -165,13 +167,8 @@ fun FolderListScreen(
                             .fillMaxWidth()
                             .clickable {
                                 popupVisible = false
-                                selectedFolderId?.let { folderId ->
-                                    authState.token?.let { token ->
-                                        notesVM.createNoteInFolder(token, folderId) { newNoteId ->
-                                            viewModel.addNoteToFolder(folderId, newNoteId)
-                                            onOpenNote(newNoteId)
-                                        }
-                                    }
+                                selectedFolder?.let { folder ->
+                                    onCreateNote(folder.id)
                                 }
                             }
                             .padding(12.dp)
@@ -184,11 +181,12 @@ fun FolderListScreen(
     // ------------------------------
     // Rename Dialog
     // ------------------------------
-    if (showRenameDialog && selectedFolderId != null) {
+    if (showRenameDialog && selectedFolder != null) {
         RenameFolderDialog(
+            initialName = selectedFolder?.title ?: "",
             onDismiss = { showRenameDialog = false },
             onConfirm = { newName ->
-                viewModel.renameFolder(selectedFolderId!!, newName)
+                selectedFolder?.let { viewModel.renameFolder(it.id, newName) }
                 showRenameDialog = false
             }
         )
@@ -197,11 +195,12 @@ fun FolderListScreen(
     // ------------------------------
     // Description Dialog
     // ------------------------------
-    if (showDescriptionDialog && selectedFolderId != null) {
+    if (showDescriptionDialog && selectedFolder != null) {
         DescriptionFolderDialog(
+            initialDescription = selectedFolder?.description ?: "",
             onDismiss = { showDescriptionDialog = false },
             onConfirm = { newDesc ->
-                viewModel.updateFolderDescription(selectedFolderId!!, newDesc)
+                selectedFolder?.let { viewModel.updateFolderDescription(it.id, newDesc) }
                 showDescriptionDialog = false
             }
         )
@@ -214,7 +213,7 @@ fun FolderListScreen(
 @Composable
 fun FolderCard(
     name: String,
-    hashtag: String,
+    hashtag: String?,
     notesCount: Int,
     gradientColors: List<Color>,
     onClick: () -> Unit,
@@ -239,7 +238,9 @@ fun FolderCard(
         Column(modifier = Modifier.align(Alignment.TopStart)) {
             Text(name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(Modifier.height(6.dp))
-            Text(hashtag, fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f))
+            if(hashtag != null) {
+                Text(hashtag, fontSize = 14.sp, color = Color.White.copy(alpha = 0.9f))
+            }
         }
 
         Text(
@@ -255,8 +256,8 @@ fun FolderCard(
 // Dialogs
 // ------------------------------
 @Composable
-fun RenameFolderDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
+fun RenameFolderDialog(initialName: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var text by remember { mutableStateOf(initialName) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -289,8 +290,8 @@ fun RenameFolderDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
 }
 
 @Composable
-fun DescriptionFolderDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
+fun DescriptionFolderDialog(initialDescription: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var text by remember { mutableStateOf(initialDescription) }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(

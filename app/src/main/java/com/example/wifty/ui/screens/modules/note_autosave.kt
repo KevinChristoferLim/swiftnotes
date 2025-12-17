@@ -41,6 +41,8 @@ fun commitBlocksToModelAndSave(
     titleText: String,
     blocks: List<Block>,
     colorLong: Long,
+    isPinned: Boolean,
+    isLocked: Boolean,
     viewModel: NotesViewModel
 ): Note? {
     if (originalNote == null) return null

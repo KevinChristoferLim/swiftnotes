@@ -1,5 +1,6 @@
 package com.example.wifty.data.api
 
+import com.example.wifty.model.Folder
 import com.example.wifty.model.Note
 import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
