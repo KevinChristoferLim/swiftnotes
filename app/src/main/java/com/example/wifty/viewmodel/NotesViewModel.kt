@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wifty.model.Note
 import com.example.wifty.repository.NotesRepository
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -36,8 +37,8 @@ class NotesViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val sharedNotes: StateFlow<List<Note>> = combine(
-        _notes, 
-        _currentUserId, 
+        _notes,
+        _currentUserId,
         _currentUserEmail
     ) { notes: List<Note>, userId: String?, email: String? ->
         if (userId == null) emptyList()
@@ -91,13 +92,61 @@ class NotesViewModel(
                 if (res.isSuccessful) {
                     loadNotes(token)
                     val body = res.body()
-                    // Try different possible ID keys from backend
-                    val newId = body?.get("id")?.toString() 
-                        ?: body?.get("_id")?.toString() 
-                        ?: body?.get("insertId")?.toString()
-                        ?: ""
-                    
-                    if (newId.isNotEmpty()) {
+
+                    // Normalize id values coming back from the backend (could be numeric types)
+                    val rawId = body?.get("id") ?: body?.get("_id") ?: body?.get("insertId")
+                    val newId = when (rawId) {
+                        is Number -> {
+                            // prefer integer string when possible
+                            if (rawId.toDouble() % 1.0 == 0.0) rawId.toLong().toString() else rawId.toString()
+                        }
+                        else -> rawId?.toString() ?: ""
+                    }
+
+                    // If backend returned the created note object, insert it into local list
+                    val gson = Gson()
+                    val noteObject = body?.get("note")
+                    if (noteObject != null) {
+                        try {
+                            val json = gson.toJson(noteObject)
+                            val createdNote = gson.fromJson(json, Note::class.java)
+                            // Normalize created note id if possible
+                            val normalizedId = when (val raw = noteObject as? Map<*, *>) {
+                                null -> createdNote.id
+                                else -> {
+                                    val nid = raw["id"]
+                                    when (nid) {
+                                        is Number -> if (nid.toDouble() % 1.0 == 0.0) nid.toLong().toString() else nid.toString()
+                                        else -> nid?.toString() ?: createdNote.id
+                                    }
+                                }
+                            }
+                            val noteWithNormalizedId = if (createdNote.id != normalizedId) createdNote.copy(id = normalizedId) else createdNote
+
+                            // Add to local list if not present
+                            if (_notes.value.none { it.id == noteWithNormalizedId.id }) {
+                                _notes.value = _notes.value + noteWithNormalizedId
+                            }
+                        } catch (e: Exception) {
+                            // ignore parsing errors and fall back to reload
+                        }
+                    } else if (newId.isNotEmpty()) {
+                        // If we only got an id, but no note object, synthesize a minimal note so UI can show it
+                        val synthesizedId = if (newId.endsWith(".0")) newId.removeSuffix(".0") else newId
+                        val synthesizedNote = Note(
+                            id = synthesizedId,
+                            title = title,
+                            content = content ?: "",
+                            ownerId = null,
+                            userId = null,
+                            folderId = folderId
+                        )
+                        if (_notes.value.none { it.id == synthesizedNote.id }) {
+                            _notes.value = _notes.value + synthesizedNote
+                        }
+                    }
+
+                    if (!newId.isNullOrEmpty()) {
                         onCreated(newId)
                     } else {
                         _error.value = "Note created, but no ID returned from server"
@@ -165,7 +214,7 @@ class NotesViewModel(
             }
         }
     }
-    
+
     fun addCollaboratorToNote(token: String, noteId: String, email: String) {
         addCollaborator(token, noteId, email)
     }
