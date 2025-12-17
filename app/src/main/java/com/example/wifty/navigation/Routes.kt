@@ -26,6 +26,8 @@ sealed class Routes(val route: String) {
         fun pass(folderId: String) = "view_folder/$folderId"
     }
 
+    object SharedNotes : Routes("shared_notes")
+
     object Home : Routes("home")
 
     // 👇 ADDED THESE FOR THE OTP FLOW

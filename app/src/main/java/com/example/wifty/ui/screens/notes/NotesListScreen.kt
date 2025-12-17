@@ -60,6 +60,7 @@ fun NotesListScreen(
     onCreateNewNote: () -> Unit,
     onOpenNote: (String) -> Unit,
     onOpenFolders: () -> Unit,
+    onOpenSharedNotes: () -> Unit,
     onOpenProfile: () -> Unit
 ) {
     val authState by authViewModel.uiState.collectAsState()
@@ -128,6 +129,7 @@ fun NotesListScreen(
                         searchType = "Notes"
                     },
                     onOpenFolders = onOpenFolders,
+                    onOpenSharedNotes = onOpenSharedNotes,
                     onOpenProfile = onOpenProfile
                 )
 

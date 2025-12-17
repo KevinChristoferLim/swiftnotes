@@ -19,6 +19,7 @@ import com.example.wifty.R
 fun LandingScreen(
     onCreateNewNote: () -> Unit,
     onOpenFolders: () -> Unit,
+    onOpenSharedNotes: () -> Unit,
     onOpenProfile: () -> Unit
 ) {
     Box(
@@ -37,6 +38,7 @@ fun LandingScreen(
             // --- Top Nav Bar ---
             TopNavBar(
                 onOpenFolders = onOpenFolders,
+                onOpenSharedNotes = onOpenSharedNotes,
                 onOpenProfile = onOpenProfile
             )
 

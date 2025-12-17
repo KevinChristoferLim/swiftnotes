@@ -16,6 +16,7 @@ fun HomeScreen(
     onCreateNewNote: () -> Unit,
     onOpenNote: (String) -> Unit,
     onOpenFolders: () -> Unit,
+    onOpenSharedNotes: () -> Unit,
     onOpenProfile: () -> Unit
 ) {
     val notes by notesVM.notes.collectAsState()
@@ -32,6 +33,7 @@ fun HomeScreen(
         LandingScreen(
             onCreateNewNote = onCreateNewNote,
             onOpenFolders = onOpenFolders,
+            onOpenSharedNotes = onOpenSharedNotes,
             onOpenProfile = onOpenProfile
         )
     } else {
@@ -42,6 +44,7 @@ fun HomeScreen(
             onCreateNewNote = onCreateNewNote,
             onOpenNote = onOpenNote,
             onOpenFolders = onOpenFolders,
+            onOpenSharedNotes = onOpenSharedNotes,
             onOpenProfile = onOpenProfile
         )
     }

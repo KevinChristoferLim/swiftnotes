@@ -1,22 +1,27 @@
 package com.example.wifty.model
 
 import com.example.wifty.ui.screens.modules.ReminderData
+import com.google.gson.annotations.SerializedName
 
-/**
- * Note model. color stored as Long (ARGB) for persistence / passing around.
- */
 data class Note(
     val id: String,
     val title: String = "",
-    val content: String = "",
-    val folderId: String? = null,
-    val ownerId: String? = null, // Added ownerId to track ownership
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis(),
+    @SerializedName("description") val content: String = "",
+    @SerializedName("owner_id") val ownerId: Int? = null,
+    @SerializedName("user_id") val userId: Int? = null,
+    @SerializedName("folder_id") val folderId: Int? = null,
+    @SerializedName("is_locked") val isLocked: Boolean = false,
+    @SerializedName("created_at") val createdAt: Long = System.currentTimeMillis(),
+    @SerializedName("updated_at") val updatedAt: Long = System.currentTimeMillis(),
+    
+    // UI specific fields preserved for app functionality
+    @SerializedName("color_long")
     val colorLong: Long = 0xFF4B63FFu.toLong(),
+    @SerializedName("is_pinned")
     val isPinned: Boolean = false,
-    val isLocked: Boolean = false,
+    @SerializedName("checklist")
     val checklist: List<ChecklistItem> = emptyList(),
-    val reminder: ReminderData? = null,
-    val collaborators: List<String> = emptyList() // List of collaborator emails
+    @SerializedName("reminder")
+    val reminder: ReminderData? = null
 )
+

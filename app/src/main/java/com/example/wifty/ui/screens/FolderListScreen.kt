@@ -98,7 +98,7 @@ fun FolderListScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(filteredFolders, key = { it.id }) { folder ->
-                    val noteCount = filteredNotes.count { it.folderId == folder.id }
+                    val noteCount = filteredNotes.count { it.folderId?.toString() == folder.id }
 
                     FolderCard(
                         name = folder.title,
