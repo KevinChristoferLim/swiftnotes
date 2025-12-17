@@ -40,6 +40,8 @@ fun commitBlocksToModelAndSave(
     titleText: String,
     blocks: List<Block>,
     colorLong: Long,
+    isPinned: Boolean,
+    isLocked: Boolean,
     viewModel: NotesViewModel
 ): Note? {
     if (originalNote == null) return null
@@ -53,7 +55,10 @@ fun commitBlocksToModelAndSave(
         title = titleText,
         content = contentString,
         colorLong = colorLong,
-        checklist = checklist
+        isPinned = isPinned,
+        isLocked = isLocked,
+        checklist = checklist,
+        updatedAt = System.currentTimeMillis()
     )
 
     // persist via viewModel (fire & forget; viewModel implementation handles threading)

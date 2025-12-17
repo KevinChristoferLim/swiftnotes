@@ -21,8 +21,9 @@ class FolderViewModel(
         loadFolders()
     }
 
-    private fun loadFolders() {
+    fun loadFolders() {
         viewModelScope.launch {
+            repo.refreshFolders()
             repo.getFolders().collect { list ->
                 _folders.value = list
             }

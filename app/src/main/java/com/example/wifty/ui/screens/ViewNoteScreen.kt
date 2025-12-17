@@ -68,7 +68,7 @@ fun ViewNoteScreen(
     // ---- Helpers (must exist before being referenced) ----
 
     fun commitAndAssign() {
-        val updated = commitBlocksToModelAndSave(note, title.text, blocks, colorLong, viewModel)
+        val updated = commitBlocksToModelAndSave(note, title.text, blocks, colorLong, isPinned, isLocked, viewModel)
         if (updated != null) note = updated
     }
 
@@ -189,6 +189,8 @@ fun ViewNoteScreen(
             loaded?.let {
                 title = TextFieldValue(it.title)
                 colorLong = it.colorLong
+                isPinned = it.isPinned
+                isLocked = it.isLocked
                 val parsed = parseContentToBlocks(it.content ?: "")
                 blocks = parsed
                 syncFieldValuesFromBlocksLocal(parsed)
@@ -208,11 +210,15 @@ fun ViewNoteScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { isLocked = !isLocked }) {
+                    IconButton(onClick = { 
+                        isLocked = !isLocked
+                        scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
+                    }) {
                         Icon(Icons.Default.Lock, contentDescription = if (isLocked) "Unlock" else "Lock")
                     }
                     IconButton(onClick = {
                         isPinned = !isPinned
+                        scheduleAutosaveLocal(coroutineScope, ::commitAndAssign, autosaveJob)?.also { autosaveJob = it }
                     }) {
                         Icon(Icons.Default.Star, contentDescription = "Pin", tint = if (isPinned) Color.Yellow else LocalContentColor.current)
                     }
@@ -221,7 +227,7 @@ fun ViewNoteScreen(
                     }
                     TextButton(onClick = {
                         // immediate save & close
-                        val updated = commitBlocksToModelAndSave(note, title.text, blocks, colorLong, viewModel)
+                        val updated = commitBlocksToModelAndSave(note, title.text, blocks, colorLong, isPinned, isLocked, viewModel)
                         if (updated != null) note = updated
                         onClose()
                     }) {

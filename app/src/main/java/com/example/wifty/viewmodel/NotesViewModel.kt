@@ -68,28 +68,31 @@ class NotesViewModel(
     }
 
     fun togglePin(noteId: String) {
-        val updatedNotes = _notes.value.map {
-            if (it.id == noteId) it.copy(isPinned = !it.isPinned) else it
+        viewModelScope.launch {
+            val currentNote = _notes.value.find { it.id == noteId } ?: repo.getNote(noteId)
+            if (currentNote != null) {
+                val updated = currentNote.copy(isPinned = !currentNote.isPinned, updatedAt = System.currentTimeMillis())
+                repo.updateNote(updated)
+                refreshNotes()
+            }
         }
-        _notes.value = updatedNotes
-        // Add repo update here if persistence needed
     }
 
     fun toggleLock(noteId: String) {
-        val updatedNotes = _notes.value.map {
-            if (it.id == noteId) it.copy(isLocked = !it.isLocked) else it
+        viewModelScope.launch {
+            val currentNote = _notes.value.find { it.id == noteId } ?: repo.getNote(noteId)
+            if (currentNote != null) {
+                val updated = currentNote.copy(isLocked = !currentNote.isLocked, updatedAt = System.currentTimeMillis())
+                repo.updateNote(updated)
+                refreshNotes()
+            }
         }
-        _notes.value = updatedNotes
-        // Add repo update here if persistence needed
     }
 
     fun setReminder(noteId: String, timeInMillis: Long) {
         // TODO: Implement reminders with WorkManager
     }
 
-    // ----------------------------------------------------
-    //  ATTACHMENTS (no Note model changes required!)
-    // ----------------------------------------------------
 
     fun attachImageToNote(noteId: String, uri: Uri) {
         val note = _notes.value.find { it.id == noteId } ?: return
