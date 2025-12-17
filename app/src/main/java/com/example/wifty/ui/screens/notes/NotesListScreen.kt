@@ -20,6 +20,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -81,7 +83,9 @@ fun NotesListScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var selectedNote by remember { mutableStateOf<Note?>(null) }
     var showMoveDialog by remember { mutableStateOf(false) }
-    var menuOffset by remember { mutableStateOf(Offset.Zero) }
+    var pressOffset by remember { mutableStateOf(Offset.Zero) }
+    var itemPosition by remember { mutableStateOf(Offset.Zero) }
+
 
     val filteredOwnedNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
         ownedNotes.filter { it.title.contains(searchQuery, ignoreCase = true) }
@@ -155,7 +159,7 @@ fun NotesListScreen(
                                 onClick = { onOpenNote(note.id) },
                                 onLongPress = { pressOffset ->
                                     selectedNote = note
-                                    menuOffset = pressOffset
+                                    itemPosition = pressOffset
                                     menuExpanded = true
                                 }
                             )
@@ -175,9 +179,17 @@ fun NotesListScreen(
 
         // --- Popup Menu ---
         if (menuExpanded && selectedNote != null) {
+            val density = LocalDensity.current
+            val popupOffset = with(density) {
+                IntOffset(
+                    (itemPosition.x).toInt(),
+                    (itemPosition.y).toInt()
+                )
+            }
+
             Popup(
                 alignment = Alignment.TopStart,
-                offset = IntOffset(menuOffset.x.toInt(), menuOffset.y.toInt()),
+                offset = popupOffset,
                 onDismissRequest = { menuExpanded = false }
             ) {
                 Surface(
@@ -195,11 +207,13 @@ fun NotesListScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    val token = authState.token
-                                    if (token != null) {
-                                        viewModel.deleteNote(token, selectedNote!!.id)
+                                    selectedNote?.let { note ->
+                                        authState.token?.let { token ->
+                                            viewModel.deleteNote(token, note.id)
+                                        }
                                     }
                                     menuExpanded = false
+                                    selectedNote = null
                                 }
                                 .padding(12.dp)
                         )
@@ -282,17 +296,18 @@ fun NoteCard(
 ) {
     val timeLabel = remember(note.updatedAt) { formatRelativeTime(note.updatedAt) }
     val backgroundColor = if (note.colorLong == 0L) Color(0xFFD3E3FD) else Color(note.colorLong)
+    var boxModifier = Modifier
+        .fillMaxWidth()
+        .height(175.dp)
+        .pointerInput(Unit) {
+            detectTapGestures(
+                onTap = { onClick() },
+                onLongPress = { offset -> onLongPress(offset) }
+            )
+        }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(175.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onClick() },
-                    onLongPress = { offset -> onLongPress(offset) }
-                )
-            }
+        modifier = boxModifier
             .background(backgroundColor.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
             .padding(14.dp)
     ) {
@@ -305,9 +320,10 @@ fun NoteCard(
 
             Spacer(Modifier.height(6.dp))
 
+            val content = note.content
             Text(
-                if (note.content.isBlank()) "(Empty note)"
-                else note.content.take(50) + if (note.content.length > 50) "..." else "",
+                if (content.isNullOrBlank()) "(Empty note)"
+                else content.take(50) + if (content.length > 50) "..." else "",
                 style = MaterialTheme.typography.bodySmall
             )
 
