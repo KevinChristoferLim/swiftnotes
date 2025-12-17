@@ -1,10 +1,15 @@
 package com.example.wifty.data.api
 
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.POST
 import retrofit2.http.Body
 import retrofit2.Response
 import retrofit2.http.DELETE
 import retrofit2.http.Header
+import retrofit2.http.Multipart
+import retrofit2.http.PUT
+import retrofit2.http.Part
 
 data class LoginRequest(
     val email: String,
@@ -47,4 +52,13 @@ interface ApiService {
 
     @DELETE("/api/auth/delete-account")
     suspend fun deleteAccount(@Header("Authorization") token: String): Response<Unit>
+
+    @Multipart
+    @PUT("/api/auth/update-profile")
+    suspend fun updateProfile(
+        @Header("Authorization") token: String,
+        @Part("username") username: RequestBody,
+        @Part("email") email: RequestBody,
+        @Part profilePicture: MultipartBody.Part? // Nullable if no image is uploaded
+    ): Response<LoginResponse> // Assuming the response is similar to LoginResponse
 }

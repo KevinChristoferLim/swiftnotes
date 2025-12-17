@@ -44,6 +44,13 @@ fun EditProfileScreen(
         onResult = { uri: Uri? -> imageUri = uri }
     )
 
+    LaunchedEffect(uiState.user) {
+        if (user != null) {
+            name = user.username
+            email = user.email
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -121,10 +128,22 @@ fun EditProfileScreen(
                 )
             }
 
+            if (uiState.isLoading) {
+                Spacer(Modifier.height(16.dp))
+                CircularProgressIndicator()
+            }
+
+            uiState.error?.let {
+                Text(it, color = Color.Red, modifier = Modifier.padding(top = 8.dp))
+            }
+
             Spacer(Modifier.weight(1f))
 
             Button(
-                onClick = { /* TODO: Handle save */ },
+                onClick = { 
+                    authViewModel.updateProfile(name, email, imageUri)
+                    onBack()
+                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp)

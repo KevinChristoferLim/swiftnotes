@@ -1,6 +1,7 @@
 package com.example.wifty.ui.screens.login
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wifty.data.SecureTokenManager
@@ -12,6 +13,11 @@ import com.example.wifty.data.api.UserData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 
 data class AuthUiState(
     val isLoading: Boolean = false,
@@ -125,6 +131,55 @@ class AuthViewModel(private val apiService: ApiService, application: Application
             }
         }
     }
+    
+    fun updateProfile(username: String, email: String, imageUri: Uri?) {
+        val token = _uiState.value.token
+        if (token == null) {
+            _uiState.value = _uiState.value.copy(error = "Not authenticated")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
+                val usernameBody = username.toRequestBody("text/plain".toMediaTypeOrNull())
+                val emailBody = email.toRequestBody("text/plain".toMediaTypeOrNull())
+
+                val imagePart: MultipartBody.Part? = imageUri?.let {
+                    val application = getApplication<Application>()
+                    application.contentResolver.openInputStream(it)?.let { inputStream ->
+                        val file = File(application.cacheDir, "profile.jpg")
+                        file.outputStream().use { outputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                        val requestFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
+                        MultipartBody.Part.createFormData("profilePicture", file.name, requestFile)
+                    }
+                }
+
+                val response = apiService.updateProfile("Bearer $token", usernameBody, emailBody, imagePart)
+
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body?.success == true && body.user != null) {
+                        secureTokenManager.saveAuthData(token, body.user) // Update stored user data
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            user = body.user // Update UI with new user data
+                        )
+                    } else {
+                        _uiState.value = _uiState.value.copy(isLoading = false, error = body?.message ?: "Update failed")
+                    }
+                } else {
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = "Update failed: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = "Network error: ${e.message}")
+            }
+        }
+    }
+
 
     fun logout() {
         secureTokenManager.clearAuthData()
