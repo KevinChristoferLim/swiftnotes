@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 import android.net.Uri
+import com.example.wifty.ui.screens.modules.ReminderData
 
 class NotesViewModel(
     private val repo: NotesRepository = NotesRepository()
@@ -83,8 +84,15 @@ class NotesViewModel(
         // Add repo update here if persistence needed
     }
 
-    fun setReminder(noteId: String, timeInMillis: Long) {
-        // TODO: Implement reminders with WorkManager
+    fun addReminderToNote(noteId: String, reminder: ReminderData) {
+        viewModelScope.launch {
+            val note = repo.getNote(noteId)
+            if (note != null) {
+                val updatedNote = note.copy(reminder = reminder, updatedAt = System.currentTimeMillis())
+                repo.updateNote(updatedNote)
+                refreshNotes()
+            }
+        }
     }
 
     // ----------------------------------------------------

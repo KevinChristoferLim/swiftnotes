@@ -1,5 +1,7 @@
 package com.example.wifty.model
 
+import com.example.wifty.ui.screens.modules.ReminderData
+
 /**
  * Note model. color stored as Long (ARGB) for persistence / passing around.
  */
@@ -13,7 +15,6 @@ data class Note(
     val colorLong: Long = 0xFF4B63FFu.toLong(),
     val isPinned: Boolean = false,
     val isLocked: Boolean = false,
-    val checklist: List<ChecklistItem> = emptyList()
+    val checklist: List<ChecklistItem> = emptyList(),
+    val reminder: ReminderData? = null
 )
-
-
