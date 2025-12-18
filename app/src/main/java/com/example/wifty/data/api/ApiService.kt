@@ -59,6 +59,7 @@ data class UpdateNoteRequest(
     val title: String?,
     @SerializedName("description") val content: String?,
     @SerializedName("folder_id") val folderId: Int? = null,
+    @SerializedName("is_pinned") val isPinned: Boolean? = null,
     @SerializedName("reminder_date_millis") val reminderDateMillis: Long? = null,
     @SerializedName("reminder_time_millis") val reminderTimeMillis: Long? = null,
     @SerializedName("reminder_repeat") val reminderRepeat: List<String>? = null,

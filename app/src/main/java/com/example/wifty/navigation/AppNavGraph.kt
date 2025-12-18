@@ -53,7 +53,6 @@ fun AppNavGraph(
                 onCreateNewNote = { navController.navigate(Routes.CreateNote.route) },
                 onOpenNote = { id -> navController.navigate(Routes.ViewNote.pass(id)) },
                 onOpenFolders = { navController.navigate(Routes.FolderList.route) },
-                onOpenSharedNotes = { navController.navigate(Routes.SharedNotes.route) },
                 onOpenProfile = { navController.navigate(Routes.Profile.route) }
             )
         }
@@ -130,9 +129,6 @@ fun AppNavGraph(
                 onOpenFolders = {
                     navController.navigate(Routes.FolderList.route)
                 },
-                onOpenSharedNotes = {
-                    navController.navigate(Routes.SharedNotes.route)
-                },
                 onOpenProfile = {
                     navController.navigate(Routes.Profile.route)
                 }
@@ -201,18 +197,6 @@ fun AppNavGraph(
                 onBack = { navController.popBackStack() },
                 onOpenNote = { noteId -> navController.navigate(Routes.ViewNote.pass(noteId)) },
                 onOpenProfile = { navController.navigate(Routes.Profile.route) }
-            )
-        }
-
-        // ---- SHARED NOTES ----
-        composable(Routes.SharedNotes.route) {
-            SharedNotesScreen(
-                viewModel = notesVM,
-                authViewModel = authViewModel,
-                onOpenNote = { noteId ->
-                    navController.navigate(Routes.ViewNote.pass(noteId))
-                },
-                onBack = { navController.popBackStack() }
             )
         }
     }

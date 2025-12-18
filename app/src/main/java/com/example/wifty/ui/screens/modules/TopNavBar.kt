@@ -29,7 +29,6 @@ fun TopNavBar(
     onSearchClick: ((query: String, type: String) -> Unit)? = null, // type = "Notes" or "Folders"
     searchType: String = "Notes", // default type
     onOpenFolders: (() -> Unit)? = null,
-    onOpenSharedNotes: (() -> Unit)? = null,
     onOpenProfile: (() -> Unit)? = null
 ) {
     var showSearchDialog by remember { mutableStateOf(false) }
@@ -64,19 +63,6 @@ fun TopNavBar(
                     modifier = Modifier
                         .size(26.dp)
                         .clickable { openFolders() }
-                )
-                Spacer(modifier = Modifier.width(18.dp))
-            }
-
-
-            // Shared Notes icon
-            onOpenSharedNotes?.let {
-                Icon(
-                    imageVector = Icons.Default.Face, // Changed from Groups to Face as a fallback for standard material icons
-                    contentDescription = "Shared Notes",
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clickable { it() }
                 )
                 Spacer(modifier = Modifier.width(18.dp))
             }

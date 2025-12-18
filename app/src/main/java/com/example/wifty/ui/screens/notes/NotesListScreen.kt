@@ -63,7 +63,6 @@ fun NotesListScreen(
     onCreateNewNote: () -> Unit,
     onOpenNote: (String) -> Unit,
     onOpenFolders: () -> Unit,
-    onOpenSharedNotes: () -> Unit,
     onOpenProfile: () -> Unit
 ) {
     val authState by authViewModel.uiState.collectAsState()
@@ -74,7 +73,7 @@ fun NotesListScreen(
         authState.token?.let { viewModel.refreshNotes(it) }
     }
 
-    val ownedNotes by viewModel.ownedNotes.collectAsState()
+    val allNotes by viewModel.allNotes.collectAsState()
     val folders by folderViewModel.folders.collectAsState()
 
     // --- Search State ---
@@ -88,9 +87,9 @@ fun NotesListScreen(
     var itemPosition by remember { mutableStateOf(Offset.Zero) }
 
 
-    val filteredOwnedNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
-        ownedNotes.filter { it.title.contains(searchQuery, ignoreCase = true) }
-    } else ownedNotes
+    val filteredNotes = if (searchType == "Notes" && searchQuery.isNotBlank()) {
+        allNotes.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    } else allNotes
 
     Box(
         modifier = Modifier
@@ -129,7 +128,6 @@ fun NotesListScreen(
                         searchType = "Notes"
                     },
                     onOpenFolders = onOpenFolders,
-                    onOpenSharedNotes = onOpenSharedNotes,
                     onOpenProfile = onOpenProfile
                 )
 
@@ -142,11 +140,11 @@ fun NotesListScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // --- My Notes Section ---
-                    if (filteredOwnedNotes.isNotEmpty()) {
+                    // --- All Notes Section ---
+                    if (filteredNotes.isNotEmpty()) {
                         item(span = { GridItemSpan(2) }) {
                             Text(
-                                "My Notes",
+                                "All Notes",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 18.sp
@@ -154,7 +152,7 @@ fun NotesListScreen(
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
-                        items(filteredOwnedNotes) { note ->
+                        items(filteredNotes) { note ->
                             NoteCard(
                                 note = note,
                                 onClick = { onOpenNote(note.id) },
@@ -167,7 +165,7 @@ fun NotesListScreen(
                         }
                     }
 
-                    if (filteredOwnedNotes.isEmpty()) {
+                    if (filteredNotes.isEmpty()) {
                          item(span = { GridItemSpan(2) }) {
                              Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                  Text("No notes found", color = Color.Gray)

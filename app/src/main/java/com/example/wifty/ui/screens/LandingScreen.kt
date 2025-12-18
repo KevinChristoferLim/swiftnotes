@@ -1,4 +1,4 @@
-package com.example.wifty.ui.screens.notes
+package com.example.wifty.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.wifty.ui.screens.modules.TopNavBar
 import com.example.wifty.R
@@ -19,7 +20,6 @@ import com.example.wifty.R
 fun LandingScreen(
     onCreateNewNote: () -> Unit,
     onOpenFolders: () -> Unit,
-    onOpenSharedNotes: () -> Unit,
     onOpenProfile: () -> Unit
 ) {
     Box(
@@ -38,7 +38,6 @@ fun LandingScreen(
             // --- Top Nav Bar ---
             TopNavBar(
                 onOpenFolders = onOpenFolders,
-                onOpenSharedNotes = onOpenSharedNotes,
                 onOpenProfile = onOpenProfile
             )
 
@@ -69,9 +68,9 @@ fun LandingScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Every big step starts with a small step.\nNote your first idea and start your journey!",
+                        text = "Every big step starts with a small step.\\nNote your first idea and start your journey!",
                         style = MaterialTheme.typography.bodyMedium,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = TextAlign.Center
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))

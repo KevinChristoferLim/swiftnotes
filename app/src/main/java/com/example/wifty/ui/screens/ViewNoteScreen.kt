@@ -33,6 +33,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import com.example.wifty.R
 import com.example.wifty.model.Note
 import com.example.wifty.ui.screens.login.AuthViewModel
 import com.example.wifty.ui.screens.modules.*
@@ -44,6 +45,7 @@ import kotlinx.coroutines.CoroutineScope
 import java.io.FileNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -215,6 +217,7 @@ fun ViewNoteScreen(
                 blocks = parsed
                 syncFieldValuesFromBlocksLocal(parsed)
                 isLocked = it.isLocked
+                isPinned = it.isPinned
             }
         }
     }
@@ -226,6 +229,7 @@ fun ViewNoteScreen(
             note = loaded
             title = TextFieldValue(loaded.title)
             colorLong = loaded.colorLong
+            isPinned = loaded.isPinned
             val parsed = parseContentToBlocks(loaded.content ?: "")
             blocks = parsed
             syncFieldValuesFromBlocksLocal(parsed)
@@ -378,8 +382,24 @@ fun ViewNoteScreen(
                             }
                         }
                     }
-                        IconButton(onClick = { isPinned = !isPinned }) {
-                        Icon(Icons.Default.Star, contentDescription = "Pin", tint = if (isPinned) Color.Yellow else LocalContentColor.current)
+                        IconButton(onClick = { 
+                            authState.token?.let { token ->
+                                viewModel.togglePin(token, noteId)
+                            }
+                        }) {
+                            if (isPinned) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.sparkle_icon),
+                                    contentDescription = "Pin",
+                                    tint = Color(0xFF673AB7)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Pin",
+                                    tint = LocalContentColor.current
+                                )
+                            }
                     }
                     IconButton(onClick = { showReminderDialog = true }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Add reminder")

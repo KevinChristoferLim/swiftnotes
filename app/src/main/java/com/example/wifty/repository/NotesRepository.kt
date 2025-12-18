@@ -24,7 +24,7 @@ class NotesRepository(private val apiService: ApiService = RetrofitClient.apiSer
             reminderLocation
         ))
 
-    suspend fun updateNote(token: String, id: String, title: String?, content: String?, folderId: Int?,
+    suspend fun updateNote(token: String, id: String, title: String?, content: String?, folderId: Int?, isPinned: Boolean? = null,
                              reminderDateMillis: Long? = null,
                              reminderTimeMillis: Long? = null,
                              reminderRepeat: List<String>? = null,
@@ -33,6 +33,7 @@ class NotesRepository(private val apiService: ApiService = RetrofitClient.apiSer
             title,
             content,
             folderId,
+            isPinned,
             reminderDateMillis,
             reminderTimeMillis,
             reminderRepeat,

@@ -27,31 +27,19 @@ class NotesViewModel(
     private val _currentUserEmail = MutableStateFlow<String?>(null)
     private var _token: String? = null
 
-    val ownedNotes: StateFlow<List<Note>> = combine(_notes, _currentUserId) { notes: List<Note>, userId: String? ->
-        if (userId == null) notes
-        else {
+    val allNotes: StateFlow<List<Note>> = combine(_notes, _currentUserId) { notes, userId ->
+        if (userId == null) {
+            notes
+        } else {
             val uid = userId.toIntOrNull()
-            if (uid == null) notes
-            else notes.filter { it.ownerId == uid }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val sharedNotes: StateFlow<List<Note>> = combine(
-        _notes,
-        _currentUserId,
-        _currentUserEmail
-    ) { notes: List<Note>, userId: String?, email: String? ->
-        if (userId == null) emptyList()
-        else {
-            val uid = userId.toIntOrNull()
-            if (uid == null) emptyList()
-            else {
-                // Notes where current user is not the owner but marked as collaboration
-                notes.filter { note ->
-                    (note.ownerId != uid) && (note.isCollaboration || note.userId == uid)
-                }
+            if (uid == null) {
+                notes
+            } else {
+                notes.filter { it.ownerId == uid || it.isCollaboration }
             }
         }
+    }.combine(notes) { filteredNotes, allNotes ->
+        allNotes.sortedWith(compareByDescending<Note> { it.isPinned }.thenByDescending { it.updatedAt })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setCurrentUser(id: String?, email: String?, token: String?) {
@@ -174,10 +162,10 @@ class NotesViewModel(
         createNote(token, folderId = folderIdInt, onCreated = onCreated)
     }
 
-    fun updateNote(token: String, id: String, title: String?, content: String?, folderId: Int?) {
+    fun updateNote(token: String, id: String, title: String?, content: String?, folderId: Int?, isPinned: Boolean? = null) {
         viewModelScope.launch {
             try {
-                val res = repo.updateNote(token, id, title, content, folderId)
+                val res = repo.updateNote(token, id, title, content, folderId, isPinned)
                 if (res.isSuccessful) {
                     loadNotes(token)
                 } else {
@@ -190,7 +178,7 @@ class NotesViewModel(
     }
 
     fun updateNote(token: String, note: Note) {
-        updateNote(token, note.id, note.title, note.content, note.folderId)
+        updateNote(token, note.id, note.title, note.content, note.folderId, note.isPinned)
     }
 
     fun deleteNote(token: String, id: String) {
@@ -351,7 +339,12 @@ class NotesViewModel(
             }
         }
     }
-    fun togglePin(token: String, noteId: String) {}
+    fun togglePin(token: String, noteId: String) {
+        val note = _notes.value.find { it.id == noteId }
+        if (note != null) {
+            updateNote(token, noteId, note.title, note.content, note.folderId, !note.isPinned)
+        }
+    }
     fun toggleLock(token: String, noteId: String) {}
 
     fun clearError() { _error.value = null }
