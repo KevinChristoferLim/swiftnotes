@@ -8,19 +8,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.wifty.ui.screens.login.AuthViewModel
+import com.example.wifty.ui.screens.modules.ReminderDialog
+import com.example.wifty.ui.screens.modules.ReminderData
 import com.example.wifty.viewmodel.NotesViewModel
 
 @Composable
 fun CreateNoteScreen(
     viewModel: NotesViewModel,
     authViewModel: AuthViewModel,
-    folderId: String? = null,
     onCreated: (String) -> Unit
 ) {
     val authState by authViewModel.uiState.collectAsState()
     val error by viewModel.error.collectAsState()
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
+    var showReminderDialog by remember { mutableStateOf(false) }
+    var selectedReminder by remember { mutableStateOf<ReminderData?>(null) }
 
     Column(
         modifier = Modifier
@@ -60,22 +63,37 @@ fun CreateNoteScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
         
-        Button(
-            onClick = {
-                authState.token?.let { token ->
-                    viewModel.createNote(token, title, content) { newId ->
-                        if (newId.isNotEmpty()) {
-                            onCreated(newId)
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = {
+                    authState.token?.let { token ->
+                        viewModel.createNote(token, title, content, folderId = null, reminder = selectedReminder) { newId ->
+                            if (newId.isNotEmpty()) {
+                                onCreated(newId)
+                            }
                         }
                     }
-                }
-            },
+                },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
             enabled = title.isNotBlank() && authState.token != null
-        ) {
-            Text("Create Note")
+            ) {
+                Text("Create Note")
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            OutlinedButton(onClick = { showReminderDialog = true }, modifier = Modifier.height(50.dp)) {
+                Text("Add reminder")
+            }
+        }
+
+        if (showReminderDialog) {
+            ReminderDialog(onDismiss = { showReminderDialog = false }, onSave = { r ->
+                selectedReminder = r
+                showReminderDialog = false
+            })
         }
     }
 }

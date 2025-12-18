@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -28,11 +27,16 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import com.example.wifty.model.Note
 import com.example.wifty.ui.screens.login.AuthViewModel
 import com.example.wifty.ui.screens.modules.*
+import com.example.wifty.ui.screens.modules.formatReminder
 import com.example.wifty.viewmodel.NotesViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -66,6 +70,7 @@ fun ViewNoteScreen(
     var isPinned by rememberSaveable { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
     var showCollaboratorDialog by remember { mutableStateOf(false) }
+    var showUserInfoDialog by remember { mutableStateOf(false) }
 
     val authState by authViewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -202,16 +207,14 @@ fun ViewNoteScreen(
 
     LaunchedEffect(allNotes, noteId) {
         // If the note wasn't available at first (e.g. create -> navigate race), pick it up from the refreshed notes list
-        if (note == null) {
-            val loaded = allNotes.find { it.id == noteId }
-            loaded?.let {
-                note = it
-                title = TextFieldValue(it.title)
-                colorLong = it.colorLong
-                val parsed = parseContentToBlocks(it.content ?: "")
-                blocks = parsed
-                syncFieldValuesFromBlocksLocal(parsed)
-            }
+        val loaded = allNotes.find { it.id == noteId }
+        if (loaded != null && (note == null || note != loaded)) {
+            note = loaded
+            title = TextFieldValue(loaded.title)
+            colorLong = loaded.colorLong
+            val parsed = parseContentToBlocks(loaded.content ?: "")
+            blocks = parsed
+            syncFieldValuesFromBlocksLocal(parsed)
         }
     }
 
@@ -221,11 +224,37 @@ fun ViewNoteScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = {
-                        commitAndSave()
-                        onClose()
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = {
+                            commitAndSave()
+                            onClose()
+                        }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
+                        
+                        // User Profile Icon for Collaboration
+                        // Only show if there is more than one participant (owner + collaborators)
+                        if ((note?.collaborators?.size ?: 0) > 1) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(start = 4.dp)
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black)
+                                    .clickable { showUserInfoDialog = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // For simplicity, we use a Person icon if no picture. 
+                                // Since we don't have the owner's profile picture URL easily here (it's in collaborators list or owners), 
+                                // we show a generic black circle with person icon as requested.
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = "User Info",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
                 },
                 actions = {
@@ -248,6 +277,71 @@ fun ViewNoteScreen(
             )
         }
     ) { innerPadding ->
+        if (showUserInfoDialog) {
+            Dialog(onDismissRequest = { showUserInfoDialog = false }) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Collaborators Info",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        
+                        note?.collaborators?.forEach { user ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (!user.profile_picture.isNullOrEmpty()) {
+                                        AsyncImage(
+                                            model = user.profile_picture,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Icon(Icons.Default.Person, contentDescription = null, tint = Color.White)
+                                    }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(user.username, fontWeight = FontWeight.SemiBold)
+                                    Text(user.email, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                }
+                            }
+                        }
+                        
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = { showUserInfoDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF673AB7))
+                        ) {
+                            Text("Close")
+                        }
+                    }
+                }
+            }
+        }
+
         if (showReminderDialog) {
             ReminderDialog(
                 onDismiss = { showReminderDialog = false },
@@ -315,9 +409,91 @@ fun ViewNoteScreen(
                 Text("Last updated", fontSize = 13.sp, color = Color.Gray)
                 note?.reminder?.let { reminder ->
                     Spacer(Modifier.height(8.dp))
-                    Text("Reminder: ${reminder.dateMillis}", fontSize = 13.sp, color = Color.Gray)
+                    Text(formatReminder(reminder) ?: "Reminder set", fontSize = 13.sp, color = Color.Gray)
                 }
-                Spacer(Modifier.height(8.dp))
+
+                // Collaborators Section
+                // Only show if there is more than one participant (owner + collaborators)
+                note?.collaborators?.let { collaborators ->
+                    if (collaborators.size > 1) {
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "Collaborators",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black.copy(alpha = 0.7f)
+                        )
+                        collaborators.forEach { collaborator ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (!collaborator.profile_picture.isNullOrEmpty()) {
+                                    AsyncImage(
+                                        model = collaborator.profile_picture,
+                                        contentDescription = "Profile Picture",
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.LightGray),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Black),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Person,
+                                            contentDescription = "User Icon",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                
+                                Spacer(Modifier.width(12.dp))
+                                
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = collaborator.username,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.Black
+                                    )
+                                    Text(
+                                        text = collaborator.email,
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        authState.token?.let { token ->
+                                            viewModel.removeCollaborator(token, noteId, collaborator.id)
+                                        }
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Remove collaborator",
+                                        tint = Color.Red.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
 
                 for ((index, block) in blocks.withIndex()) {
                     when (block) {

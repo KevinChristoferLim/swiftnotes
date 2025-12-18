@@ -6,45 +6,39 @@ import com.example.wifty.model.Folder
 import com.example.wifty.repository.FolderRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
+import kotlinx.coroutines.flow.update
 
 class FolderViewModel(
     private val repo: FolderRepository = FolderRepository()
 ) : ViewModel() {
 
     private val _folders = MutableStateFlow<List<Folder>>(emptyList())
-    val folders: StateFlow<List<Folder>> = _folders.asStateFlow()
-
-    private var _token: String? = null
-    private var _currentUserId: String? = null
-
-    fun setCurrentUser(id: String?, token: String?) {
-        _currentUserId = id
-        _token = token
-    }
-
-    fun refreshFolders() {
-        _token?.let {
-            viewModelScope.launch {
-                repo.refreshFolders()
-            }
-        }
-    }
+    val folders: StateFlow<List<Folder>> = _folders
 
     init {
+        loadFolders()
+    }
+
+    private fun loadFolders() {
         viewModelScope.launch {
-            repo.getFolders().collect {
-                _folders.value = it
+            repo.getFolders().collect { list ->
+                _folders.value = list
             }
         }
     }
 
-    fun createFolder(folder: Folder, onCreated: (String) -> Unit) {
+    fun createFolder(title: String, tag: String, colorLong: Long) {
         viewModelScope.launch {
-            repo.createFolder(folder)?.let { createdFolder ->
-                onCreated(createdFolder.id)
-            }
+            repo.addFolder(
+                Folder(
+                    id = UUID.randomUUID().toString(),
+                    title = title,
+                    tag = tag,
+                    colorLong = colorLong
+                )
+            )
         }
     }
 
@@ -54,28 +48,34 @@ class FolderViewModel(
         }
     }
 
-    fun renameFolder(folderId: String, newName: String) {
+    fun renameFolder(folderId: String, newTitle: String) {
         viewModelScope.launch {
-            val folder = _folders.value.find { it.id == folderId }
-            folder?.let {
-                repo.updateFolder(it.copy(title = newName))
-            }
+            repo.updateFolderTitle(folderId, newTitle)
         }
     }
 
-    fun updateFolderDescription(folderId: String, newDescription: String?) {
+    fun updateFolderDescription(folderId: String, newDescription: String) {
         viewModelScope.launch {
-            val folder = _folders.value.find { it.id == folderId }
-            folder?.let {
-                repo.updateFolder(it.copy(description = newDescription))
-            }
+            repo.updateFolderDescription(folderId, newDescription)
         }
     }
 
     fun addNoteToFolder(folderId: String, noteId: String) {
-        _token?.let { token ->
-            viewModelScope.launch {
-                repo.addNoteToFolder(token, folderId, noteId)
+        _folders.update { currentFolders ->
+            currentFolders.map { folder ->
+                if (folder.id == folderId) {
+                    folder.copy(noteIds = folder.noteIds + noteId)
+                } else folder
+            }
+        }
+    }
+
+    fun removeNoteFromFolder(folderId: String, noteId: String) {
+        _folders.update { currentFolders ->
+            currentFolders.map { folder ->
+                if (folder.id == folderId) {
+                    folder.copy(noteIds = folder.noteIds - noteId)
+                } else folder
             }
         }
     }

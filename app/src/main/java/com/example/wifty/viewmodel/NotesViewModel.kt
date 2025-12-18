@@ -79,7 +79,7 @@ class NotesViewModel(
 
     fun refreshNotes(token: String) = loadNotes(token)
 
-    fun createNote(token: String, title: String = "", content: String? = "", folderId: Int? = null, onCreated: (String) -> Unit = {}) {
+    fun createNote(token: String, title: String = "", content: String? = "", folderId: Int? = null, reminder: com.example.wifty.ui.screens.modules.ReminderData? = null, onCreated: (String) -> Unit = {}) {
         // Validate title is not empty
         if (title.isBlank()) {
             _error.value = "Title cannot be empty"
@@ -88,7 +88,12 @@ class NotesViewModel(
 
         viewModelScope.launch {
             try {
-                val res = repo.createNote(token, title, content, folderId)
+                val res = repo.createNote(token, title, content, folderId,
+                    reminderDateMillis = reminder?.dateMillis,
+                    reminderTimeMillis = reminder?.timeMillis,
+                    reminderRepeat = reminder?.repeat,
+                    reminderLocation = reminder?.location
+                )
                 if (res.isSuccessful) {
                     loadNotes(token)
                     val body = res.body()
@@ -219,6 +224,21 @@ class NotesViewModel(
         addCollaborator(token, noteId, email)
     }
 
+    fun removeCollaborator(token: String, noteId: String, collaboratorId: String) {
+        viewModelScope.launch {
+            try {
+                val res = repo.removeCollaborator(token, noteId, collaboratorId)
+                if (res.isSuccessful) {
+                    loadNotes(token)
+                } else {
+                    _error.value = "Remove collaborator failed: ${res.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Network error: ${e.message}"
+            }
+        }
+    }
+
     fun getNoteById(noteId: String, onResult: (Note?) -> Unit) {
         val note = _notes.value.find { it.id == noteId }
         onResult(note)
@@ -236,6 +256,31 @@ class NotesViewModel(
     }
 
     fun addReminderToNote(token: String, noteId: String, reminder: Any) {}
+    fun addReminderToNote(token: String, noteId: String, reminder: com.example.wifty.ui.screens.modules.ReminderData) {
+        viewModelScope.launch {
+            try {
+                val res = repo.updateNote(
+                    token,
+                    noteId,
+                    title = null,
+                    content = null,
+                    folderId = null,
+                    reminderDateMillis = reminder.dateMillis,
+                    reminderTimeMillis = reminder.timeMillis,
+                    reminderRepeat = reminder.repeat,
+                    reminderLocation = reminder.location
+                )
+
+                if (res.isSuccessful) {
+                    loadNotes(token)
+                } else {
+                    _error.value = "Failed to save reminder: ${res.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Network error: ${e.message}"
+            }
+        }
+    }
     fun togglePin(token: String, noteId: String) {}
     fun toggleLock(token: String, noteId: String) {}
 

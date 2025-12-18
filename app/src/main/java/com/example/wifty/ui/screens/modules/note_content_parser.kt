@@ -21,14 +21,6 @@ sealed class Block {
     data class FileBlock(val uri: String, val filename: String, val sizeBytes: Long) : Block()
 }
 
-/** Reminder data DTO used by the reminder UI. */
-data class ReminderData(
-    val dateMillis: Long? = null,
-    val timeMillis: Long? = null,
-    val repeat: List<String> = emptyList(),
-    val location: String? = null
-)
-
 /** Encode string to base64 without newlines for marker embedding. */
 fun encodeForMarker(s: String): String {
     val bytes = s.toByteArray(StandardCharsets.UTF_8)

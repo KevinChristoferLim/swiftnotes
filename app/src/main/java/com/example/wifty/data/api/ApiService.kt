@@ -1,6 +1,5 @@
 package com.example.wifty.data.api
 
-import com.example.wifty.model.Folder
 import com.example.wifty.model.Note
 import com.google.gson.annotations.SerializedName
 import okhttp3.MultipartBody
@@ -45,17 +44,25 @@ data class ChangePasswordRequest(
 data class CreateNoteRequest(
     val title: String,
     @SerializedName("description") val content: String?,
-    @SerializedName("folder_id") val folderId: Int? = null
+    @SerializedName("folder_id") val folderId: Int? = null,
+    @SerializedName("reminder_date_millis") val reminderDateMillis: Long? = null,
+    @SerializedName("reminder_time_millis") val reminderTimeMillis: Long? = null,
+    @SerializedName("reminder_repeat") val reminderRepeat: List<String>? = null,
+    @SerializedName("reminder_location") val reminderLocation: String? = null
 )
 
 data class UpdateNoteRequest(
     val title: String?,
     @SerializedName("description") val content: String?,
-    @SerializedName("folder_id") val folderId: Int?
+    @SerializedName("folder_id") val folderId: Int? = null,
+    @SerializedName("reminder_date_millis") val reminderDateMillis: Long? = null,
+    @SerializedName("reminder_time_millis") val reminderTimeMillis: Long? = null,
+    @SerializedName("reminder_repeat") val reminderRepeat: List<String>? = null,
+    @SerializedName("reminder_location") val reminderLocation: String? = null
 )
 
 data class AddCollaboratorRequest(
-    val email: String, 
+    val email: String,
     val role: String? = "editor"
 )
 
@@ -114,5 +121,12 @@ interface ApiService {
         @Header("Authorization") auth: String,
         @Path("noteId") noteId: String,
         @Body body: AddCollaboratorRequest
+    ): Response<Map<String, Any>>
+
+    @DELETE("/api/notes/{noteId}/collaborators/{collaboratorId}")
+    suspend fun removeCollaborator(
+        @Header("Authorization") auth: String,
+        @Path("noteId") noteId: String,
+        @Path("collaboratorId") collaboratorId: String
     ): Response<Map<String, Any>>
 }

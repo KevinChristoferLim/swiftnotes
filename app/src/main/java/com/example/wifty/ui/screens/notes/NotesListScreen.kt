@@ -36,6 +36,7 @@ import com.example.wifty.viewmodel.NotesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import com.example.wifty.ui.screens.modules.formatReminder
 
 // --- Helper: Relative time ---
 fun formatRelativeTime(timestamp: Long): String {
@@ -295,6 +296,7 @@ fun NoteCard(
     onLongPress: (Offset) -> Unit
 ) {
     val timeLabel = remember(note.updatedAt) { formatRelativeTime(note.updatedAt) }
+    val reminderLabel = remember(note.reminder) { formatReminder(note.reminder) }
     val backgroundColor = if (note.colorLong == 0L) Color(0xFFD3E3FD) else Color(note.colorLong)
     var boxModifier = Modifier
         .fillMaxWidth()
@@ -333,10 +335,15 @@ fun NoteCard(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    SimpleDateFormat("MMM dd", Locale.getDefault()).format(Date(note.createdAt)),
-                    style = MaterialTheme.typography.labelSmall
-                )
+                Column {
+                    Text(
+                        SimpleDateFormat("MMM dd", Locale.getDefault()).format(Date(note.createdAt)),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    reminderLabel?.let {
+                        Text(it, style = MaterialTheme.typography.labelSmall, color = Color(0xFFB00020))
+                    }
+                }
                 Text(timeLabel, style = MaterialTheme.typography.labelSmall)
             }
         }

@@ -41,8 +41,6 @@ fun commitBlocksToModelAndSave(
     titleText: String,
     blocks: List<Block>,
     colorLong: Long,
-    isPinned: Boolean,
-    isLocked: Boolean,
     viewModel: NotesViewModel
 ): Note? {
     if (originalNote == null) return null
@@ -56,7 +54,8 @@ fun commitBlocksToModelAndSave(
         title = titleText,
         content = contentString,
         colorLong = colorLong,
-        checklist = checklist,
+        checklist = checklist ?: emptyList(),
+        collaborators = originalNote.collaborators ?: emptyList(),
         updatedAt = System.currentTimeMillis() // Ensure updatedAt is refreshed for others to see
     )
 
