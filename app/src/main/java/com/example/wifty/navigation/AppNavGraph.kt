@@ -67,9 +67,6 @@ fun AppNavGraph(
                     navController.navigate(Routes.Home.route) {
                         popUpTo(Routes.Login.route) { inclusive = true }
                     }
-                },
-                onNavigateToForgotPassword = {
-                    navController.navigate(Routes.ForgotPassword.route)
                 }
             )
         }
