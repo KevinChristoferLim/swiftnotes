@@ -36,7 +36,6 @@ import androidx.compose.ui.draw.clip
 import com.example.wifty.model.Note
 import com.example.wifty.ui.screens.login.AuthViewModel
 import com.example.wifty.ui.screens.modules.*
-import com.example.wifty.ui.screens.modules.formatReminder
 import com.example.wifty.viewmodel.NotesViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -534,9 +533,10 @@ fun ViewNoteScreen(
 
                 Spacer(Modifier.height(8.dp))
                 Text("Last updated", fontSize = 13.sp, color = Color.Gray)
+                
                 note?.reminder?.let { reminder ->
-                    Spacer(Modifier.height(8.dp))
-                    Text(formatReminder(reminder) ?: "Reminder set", fontSize = 13.sp, color = Color.Gray)
+                    Spacer(Modifier.height(12.dp))
+                    LiveReminderDisplay(reminder = reminder)
                 }
 
                 // Collaborators Section
