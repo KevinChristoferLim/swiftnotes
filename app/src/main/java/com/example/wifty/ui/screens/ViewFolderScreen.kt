@@ -20,6 +20,8 @@ import com.example.wifty.ui.screens.modules.TopNavBarWithBack
 import com.example.wifty.ui.screens.login.AuthViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Brush
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,42 +78,44 @@ fun ViewFolderScreen(
         ) {
 
             // ---------------------------------------------------
-            // Folder Header Card
-            // ---------------------------------------------------
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+// Folder Header (same style as FolderCard)
+// ---------------------------------------------------
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .height(140.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color(folder?.colorLong ?: 0xFF9FA8DA),
+                                Color(folder?.colorLong ?: 0xFF9FA8DA).copy(alpha = 0.7f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(20.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .background(folder?.colorLong?.let { Color(it) } ?: Color(0xFFDDEEFF))
-                        .fillMaxSize()
-                        .padding(16.dp)
-                ) {
-                    Column(modifier = Modifier.align(Alignment.CenterStart)) {
-                        Text(
-                            folder?.title ?: "Folder",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            folder?.tag ?: "Tag: —",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.85f)
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "${filteredNotes.size} notes",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.7f)
-                        )
-                    }
+                Column(modifier = Modifier.align(Alignment.TopStart)) {
+                    Text(
+                        text = folder?.title ?: "Folder",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = folder?.tag ?: "Tag: —",
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
                 }
+
+                Text(
+                    text = "${filteredNotes.size} notes",
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontWeight = FontWeight.Medium
+                )
             }
 
             Spacer(Modifier.height(16.dp))
