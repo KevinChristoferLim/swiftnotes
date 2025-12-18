@@ -157,7 +157,11 @@ class NotesViewModel(
                         _error.value = "Note created, but no ID returned from server"
                     }
                 } else {
-                    _error.value = "Create failed: ${res.code()} - ${res.message()}"
+                    // Map specific server responses (423 -> locked note) to friendly messages
+                    _error.value = when (res.code()) {
+                        423 -> "You cannot share locked notes"
+                        else -> "Add collaborator failed: ${res.code()} - ${res.message()}"
+                    }
                 }
             } catch (e: Exception) {
                 _error.value = "Network error: ${e.message}"
@@ -239,6 +243,72 @@ class NotesViewModel(
         }
     }
 
+
+    fun lockNote(token: String, noteId: String, pin: String, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val res = repo.lockNote(token, noteId, pin)
+                if (res.isSuccessful) {
+                    loadNotes(token)
+                    onSuccess()
+                } else {
+                    val msg = "Lock failed: ${res.code()} - ${res.message()}"
+                    _error.value = msg
+                    onError(msg)
+                }
+            } catch (e: Exception) {
+                val msg = "Network error: ${e.message}"
+                _error.value = msg
+                onError(msg)
+            }
+        }
+    }
+
+    fun unlockNote(token: String, noteId: String, pin: String, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val res = repo.unlockNote(token, noteId, pin)
+                if (res.isSuccessful) {
+                    loadNotes(token)
+                    onSuccess()
+                } else {
+                    val msg = "Unlock failed: ${res.code()} - ${res.message()}"
+                    _error.value = msg
+                    onError(msg)
+                }
+            } catch (e: Exception) {
+                val msg = "Network error: ${e.message}"
+                _error.value = msg
+                onError(msg)
+            }
+        }
+    }
+
+    fun viewLockedNote(token: String, noteId: String, pin: String, onSuccess: (Map<String, Any>?) -> Unit = {}, onError: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                val res = repo.viewLockedNote(token, noteId, pin)
+                if (res.isSuccessful) {
+                    val body = res.body()
+                    val noteObj = body?.get("note")
+                    if (noteObj is Map<*, *>) {
+                        @Suppress("UNCHECKED_CAST")
+                        onSuccess(noteObj as Map<String, Any>)
+                    } else {
+                        onSuccess(null)
+                    }
+                } else {
+                    val msg = "PIN verify failed: ${res.code()} - ${res.message()}"
+                    _error.value = msg
+                    onError(msg)
+                }
+            } catch (e: Exception) {
+                val msg = "Network error: ${e.message}"
+                _error.value = msg
+                onError(msg)
+            }
+        }
+    }
     fun getNoteById(noteId: String, onResult: (Note?) -> Unit) {
         val note = _notes.value.find { it.id == noteId }
         onResult(note)

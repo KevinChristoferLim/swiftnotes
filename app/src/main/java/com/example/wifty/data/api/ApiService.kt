@@ -51,6 +51,10 @@ data class CreateNoteRequest(
     @SerializedName("reminder_location") val reminderLocation: String? = null
 )
 
+data class PinRequest(
+    val pin: String
+)
+
 data class UpdateNoteRequest(
     val title: String?,
     @SerializedName("description") val content: String?,
@@ -128,5 +132,26 @@ interface ApiService {
         @Header("Authorization") auth: String,
         @Path("noteId") noteId: String,
         @Path("collaboratorId") collaboratorId: String
+    ): Response<Map<String, Any>>
+
+    @POST("/api/notes/{id}/lock")
+    suspend fun lockNote(
+        @Header("Authorization") auth: String,
+        @Path("id") id: String,
+        @Body body: PinRequest
+    ): Response<Map<String, Any>>
+
+    @POST("/api/notes/{id}/unlock")
+    suspend fun unlockNote(
+        @Header("Authorization") auth: String,
+        @Path("id") id: String,
+        @Body body: PinRequest
+    ): Response<Map<String, Any>>
+
+    @POST("/api/notes/{id}/view")
+    suspend fun viewLockedNote(
+        @Header("Authorization") auth: String,
+        @Path("id") id: String,
+        @Body body: PinRequest
     ): Response<Map<String, Any>>
 }

@@ -47,4 +47,13 @@ class NotesRepository(private val apiService: ApiService = RetrofitClient.apiSer
 
     suspend fun removeCollaborator(token: String, noteId: String, collaboratorId: String) =
         apiService.removeCollaborator("Bearer $token", noteId, collaboratorId)
+
+    suspend fun lockNote(token: String, id: String, pin: String) =
+        apiService.lockNote("Bearer $token", id, PinRequest(pin))
+
+    suspend fun unlockNote(token: String, id: String, pin: String) =
+        apiService.unlockNote("Bearer $token", id, PinRequest(pin))
+
+    suspend fun viewLockedNote(token: String, id: String, pin: String) =
+        apiService.viewLockedNote("Bearer $token", id, PinRequest(pin))
 }

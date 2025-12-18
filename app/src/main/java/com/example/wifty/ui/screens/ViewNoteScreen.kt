@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import java.io.FileNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.ui.focus.FocusRequester
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,11 +67,21 @@ fun ViewNoteScreen(
     val coroutineScope = rememberCoroutineScope()
     var autosaveJob by remember { mutableStateOf<Job?>(null) }
 
+    // Focus requesters, kept in sync with `blocks` so other UI (image spacer) can request focus on text blocks
+    val focusRequesters = remember { mutableStateListOf<FocusRequester>() }
+    LaunchedEffect(blocks) {
+        // Ensure focusRequesters list matches blocks size
+        while (focusRequesters.size < blocks.size) focusRequesters.add(FocusRequester())
+        while (focusRequesters.size > blocks.size) focusRequesters.removeAt(focusRequesters.lastIndex)
+    }
+
     var isLocked by rememberSaveable { mutableStateOf(false) }
     var isPinned by rememberSaveable { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
     var showCollaboratorDialog by remember { mutableStateOf(false) }
     var showUserInfoDialog by remember { mutableStateOf(false) }
+    // Dialog to inform user that locked notes cannot be shared
+    var showInfoDialog by remember { mutableStateOf(false) }
 
     val authState by authViewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -116,15 +127,17 @@ fun ViewNoteScreen(
     }
 
     fun syncFieldValuesFromBlocksLocal(currentBlocks: List<Block>) {
-        blockFieldValues = currentBlocks.map { b ->
-            when (b) {
-                is Block.Text -> TextFieldValue(b.text)
-                is Block.Checklist -> TextFieldValue(b.text, selection = TextRange(b.text.length))
-                is Block.ImageBlock -> TextFieldValue("")
-                is Block.FileBlock -> TextFieldValue("")
+        blockFieldValues = currentBlocks
+            .filter { it is Block.Text || it is Block.Checklist }
+            .map {
+                when (it) {
+                    is Block.Text -> TextFieldValue(it.text)
+                    is Block.Checklist -> TextFieldValue(it.text)
+                    else -> error("Impossible")
+                }
             }
-        }
     }
+
 
     fun insertChecklistAtCursorLocal() {
         if (isLocked) return
@@ -201,6 +214,7 @@ fun ViewNoteScreen(
                 val parsed = parseContentToBlocks(it.content ?: "")
                 blocks = parsed
                 syncFieldValuesFromBlocksLocal(parsed)
+                isLocked = it.isLocked
             }
         }
     }
@@ -217,8 +231,12 @@ fun ViewNoteScreen(
             syncFieldValuesFromBlocksLocal(parsed)
         }
     }
+    // Snackbar host for showing errors from the ViewModel
+    val snackbarHostState = remember { SnackbarHostState() }
+    val vmError by viewModel.error.collectAsState()
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
@@ -231,7 +249,7 @@ fun ViewNoteScreen(
                         }) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                         }
-                        
+
                         // User Profile Icon for Collaboration
                         // Only show if there is more than one participant (owner + collaborators)
                         if ((note?.collaborators?.size ?: 0) > 1) {
@@ -244,8 +262,8 @@ fun ViewNoteScreen(
                                     .clickable { showUserInfoDialog = true },
                                 contentAlignment = Alignment.Center
                             ) {
-                                // For simplicity, we use a Person icon if no picture. 
-                                // Since we don't have the owner's profile picture URL easily here (it's in collaborators list or owners), 
+                                // For simplicity, we use a Person icon if no picture.
+                                // Since we don't have the owner's profile picture URL easily here (it's in collaborators list or owners),
                                 // we show a generic black circle with person icon as requested.
                                 Icon(
                                     Icons.Default.Person,
@@ -258,10 +276,109 @@ fun ViewNoteScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { isLocked = !isLocked }) {
+                    // Lock / Unlock button — prompts for 4-digit PIN when locking, or PIN entry when unlocking
+                    var showLockDialog by remember { mutableStateOf(false) }
+                    var showUnlockDialog by remember { mutableStateOf(false) }
+
+
+                    IconButton(onClick = {
+                        if (isLocked) {
+                            val currentUserId = authState.user?.id?.toIntOrNull()
+                            val ownerId = note?.ownerId
+                            if (currentUserId != null && ownerId == currentUserId) {
+                                showUnlockDialog = true // owner: allow entering PIN to unlock
+                            } else {
+                                showInfoDialog = true // non-owner: show read-only info
+                            }
+                        }
+                     else {
+                        showLockDialog = true
+                     }
+                    }) {
                         Icon(Icons.Default.Lock, contentDescription = if (isLocked) "Unlock" else "Lock")
                     }
-                    IconButton(onClick = { isPinned = !isPinned }) {
+
+                    if (showLockDialog) {
+                        Dialog(onDismissRequest = { showLockDialog = false }) {
+                            Card(modifier = Modifier.padding(16.dp)) {
+                                var pin by rememberSaveable { mutableStateOf("") }
+                                var pinError by remember { mutableStateOf<String?>(null) }
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("Set 4-digit PIN to lock note", fontWeight = FontWeight.SemiBold)
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedTextField(value = pin, onValueChange = { v -> if (v.length <= 4 && v.all { it.isDigit() }) pin = v }, label = { Text("PIN") })
+                                    pinError?.let { err ->
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(err, color = Color.Red, fontSize = 12.sp)
+                                    }
+                                    Spacer(Modifier.height(12.dp))
+                                    Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                        TextButton(onClick = { showLockDialog = false }) { Text("Cancel") }
+                                        Spacer(Modifier.width(8.dp))
+                                        Button(
+                                            onClick = {
+                                                val token = authState.token ?: return@Button
+                                                if (pin.length != 4) {
+                                                    pinError = "PIN must be 4 digits"
+                                                } else {
+                                                    pinError = null
+                                                    viewModel.lockNote(token, noteId, pin, onSuccess = {
+                                                        isLocked = true
+                                                        viewModel.refreshNotes(token)
+                                                    })
+                                                    showLockDialog = false
+                                                }
+                                            },
+                                            enabled = (pin.length == 4)
+                                        ) { Text("Lock") }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (showUnlockDialog) {
+                        Dialog(onDismissRequest = { showUnlockDialog = false }) {
+                            Card(modifier = Modifier.padding(16.dp)) {
+                                var pin by rememberSaveable { mutableStateOf("") }
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("Enter PIN to unlock", fontWeight = FontWeight.SemiBold)
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedTextField(value = pin, onValueChange = { v -> if (v.length <= 4 && v.all { it.isDigit() }) pin = v }, label = { Text("PIN") })
+                                    Spacer(Modifier.height(12.dp))
+                                    Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                        TextButton(onClick = { showUnlockDialog = false }) { Text("Cancel") }
+                                        Spacer(Modifier.width(8.dp))
+                                        Button(onClick = {
+                                            val token = authState.token ?: return@Button
+                                            val currentUserId = authState.user?.id?.toIntOrNull()
+                                            val ownerId = note?.ownerId
+                                            if (currentUserId != null && ownerId == currentUserId) {
+                                                viewModel.unlockNote(token, noteId, pin, onSuccess = {
+                                                    isLocked = false
+                                                    viewModel.refreshNotes(token)
+                                                })
+                                            } else {
+                                                viewModel.viewLockedNote(token, noteId, pin, onSuccess = { noteMap ->
+                                                    // temporary view; show content without unlocking permanently
+                                                    if (noteMap != null) {
+                                                        // try to extract description/content and set local blocks
+                                                        val desc = noteMap["description"] as? String
+                                                        val content = desc ?: noteMap["content"] as? String
+                                                        val parsed = parseContentToBlocks(content ?: "")
+                                                        blocks = parsed
+                                                        syncFieldValuesFromBlocksLocal(parsed)
+                                                    }
+                                                })
+                                            }
+                                            showUnlockDialog = false
+                                        }) { Text("Submit") }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                        IconButton(onClick = { isPinned = !isPinned }) {
                         Icon(Icons.Default.Star, contentDescription = "Pin", tint = if (isPinned) Color.Yellow else LocalContentColor.current)
                     }
                     IconButton(onClick = { showReminderDialog = true }) {
@@ -277,6 +394,16 @@ fun ViewNoteScreen(
             )
         }
     ) { innerPadding ->
+        // Show snackbar when ViewModel reports an error (e.g. 423 locked note)
+        LaunchedEffect(vmError) {
+            if (!vmError.isNullOrEmpty()) {
+                vmError?.let { msg ->
+                    snackbarHostState.showSnackbar(msg)
+                viewModel.clearError()
+                }
+            }
+        }
+
         if (showUserInfoDialog) {
             Dialog(onDismissRequest = { showUserInfoDialog = false }) {
                 Card(
@@ -296,7 +423,7 @@ fun ViewNoteScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(Modifier.height(16.dp))
-                        
+
                         note?.collaborators?.forEach { user ->
                             Row(
                                 modifier = Modifier
@@ -329,7 +456,7 @@ fun ViewNoteScreen(
                                 }
                             }
                         }
-                        
+
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = { showUserInfoDialog = false },
@@ -456,9 +583,9 @@ fun ViewNoteScreen(
                                         )
                                     }
                                 }
-                                
+
                                 Spacer(Modifier.width(12.dp))
-                                
+
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = collaborator.username,
@@ -499,26 +626,78 @@ fun ViewNoteScreen(
                     when (block) {
                         is Block.Text -> {
                             val tfv = blockFieldValues.getOrNull(index) ?: TextFieldValue(block.text)
-                            TextBlockEditor(
-                                value = tfv,
-                                isLocked = isLocked,
-                                onValueChange = { newTfV ->
-                                    if (!isLocked) {
-                                        val updatedVals = blockFieldValues.toMutableList()
-                                        if (index < updatedVals.size) updatedVals[index] = newTfV else updatedVals.add(newTfV)
-                                        blockFieldValues = updatedVals
+                            val showDeletePrev = !isLocked && tfv.selection.start == 0 && index - 1 >= 0 && blocks.getOrNull(index - 1) is Block.ImageBlock && focusedBlockIndex == index
 
-                                        val newBlocks = blocks.toMutableList()
-                                        newBlocks[index] = Block.Text(newTfV.text)
-                                        blocks = newBlocks
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                if (showDeletePrev) {
+                                    IconButton(onClick = {
+                                        val prevIndex = index - 1
+                                        if (prevIndex >= 0 && blocks.getOrNull(prevIndex) is Block.ImageBlock) {
+                                            val newBlocks = blocks.toMutableList()
+                                            newBlocks.removeAt(prevIndex)
+                                            val newFields = blockFieldValues.toMutableList()
+                                            if (prevIndex < newFields.size) newFields.removeAt(prevIndex)
+                                            blocks = newBlocks
+                                            blockFieldValues = newFields
 
-                                        focusedBlockIndex = index
-                                        focusedCursorOffset = newTfV.selection.start
-                                        scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
+                                            // After removal, current text block shifts to prevIndex
+                                            focusedBlockIndex = (index - 1).coerceAtLeast(0)
+                                            focusedCursorOffset = 0
+                                            scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
+                                        }
+                                    }, modifier = Modifier.size(36.dp)) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete image")
                                     }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                                }
+
+                                TextBlockEditor(
+                                    value = tfv,
+                                    isLocked = isLocked,
+                                    onValueChange = { newTfV ->
+                                        if (!isLocked) {
+                                            val updatedVals = blockFieldValues.toMutableList()
+                                            if (index < updatedVals.size) updatedVals[index] = newTfV else updatedVals.add(newTfV)
+                                            blockFieldValues = updatedVals
+
+                                            val newBlocks = blocks.toMutableList()
+                                            newBlocks[index] = Block.Text(newTfV.text)
+                                            blocks = newBlocks
+
+                                            focusedBlockIndex = index
+                                            focusedCursorOffset = newTfV.selection.start
+                                            scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
+                                        }
+                                    },
+                                    onKeyEvent = { ke ->
+                                        if (isLocked) return@TextBlockEditor false
+                                        val androidEvent = ke.nativeKeyEvent
+                                        val isBackspace = androidEvent.keyCode == android.view.KeyEvent.KEYCODE_DEL
+                                        val isKeyUp = androidEvent.action == android.view.KeyEvent.ACTION_UP
+                                        // If cursor is at start of this text block and user presses backspace, delete previous image block
+                                        if (isBackspace && isKeyUp && tfv.selection.start == 0) {
+                                            val prevIndex = index - 1
+                                            if (prevIndex >= 0 && blocks.getOrNull(prevIndex) is Block.ImageBlock) {
+                                                val newBlocks = blocks.toMutableList()
+                                                newBlocks.removeAt(prevIndex)
+                                                val newFields = blockFieldValues.toMutableList()
+                                                if (prevIndex < newFields.size) newFields.removeAt(prevIndex)
+                                                blocks = newBlocks
+                                                blockFieldValues = newFields
+
+                                                // After removal, current text block shifts to prevIndex
+                                                focusedBlockIndex = (index - 1).coerceAtLeast(0)
+                                                focusedCursorOffset = 0
+                                                scheduleAutosaveLocal(coroutineScope, ::commitAndSave, autosaveJob)?.also { autosaveJob = it }
+                                                return@TextBlockEditor true
+                                            }
+                                        }
+                                        false
+                                    },
+                                    focusRequester = focusRequesters.getOrNull(index),
+                                    requestFocusFlag = (focusedBlockIndex == index),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
 
                         is Block.Checklist -> {
@@ -575,35 +754,58 @@ fun ViewNoteScreen(
                             var expanded by remember { mutableStateOf(false) }
 
                             // Inline image - scaled to width and keeps a minimum height
-                            AsyncImage(
-                                model = Uri.parse(block.uri),
-                                contentDescription = "Image",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 120.dp)
-                                    .padding(vertical = 8.dp)
-                                    .clickable { expanded = true },
-                                contentScale = ContentScale.FillWidth
-                            )
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                AsyncImage(
+                                    model = Uri.parse(block.uri),
+                                    contentDescription = "Image",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 120.dp)
+                                        .padding(vertical = 8.dp)
+                                        .clickable { expanded = true },
+                                    contentScale = ContentScale.FillWidth
+                                )
 
-                            // Full-screen viewer when user taps the image
-                            if (expanded) {
-                                Dialog(onDismissRequest = { expanded = false }) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(Color.Black)
-                                            .clickable { expanded = false },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        AsyncImage(
-                                            model = Uri.parse(block.uri),
-                                            contentDescription = "Image (full)",
+                                // Clickable spacer below image: focuses the next text block (if any)
+                                Spacer(modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(24.dp)
+                                    .clickable {
+                                        val nextIndex = index + 1
+                                        if (nextIndex < blocks.size && blocks[nextIndex] is Block.Text) {
+                                            // ensure field list is large enough
+                                            val newFields = blockFieldValues.toMutableList()
+                                            while (newFields.size <= nextIndex) newFields.add(TextFieldValue(""))
+                                            val existing = newFields.getOrNull(nextIndex)?.text ?: ""
+                                            newFields[nextIndex] = TextFieldValue(existing, selection = TextRange(0))
+                                            blockFieldValues = newFields
+
+                                            // focus the next text block directly using the shared FocusRequester
+                                            focusedBlockIndex = nextIndex
+                                            focusedCursorOffset = 0
+                                            focusRequesters.getOrNull(nextIndex)?.requestFocus()
+                                        }
+                                    })
+
+                                // Full-screen viewer when user taps the image
+                                if (expanded) {
+                                    Dialog(onDismissRequest = { expanded = false }) {
+                                        Box(
                                             modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
-                                            contentScale = ContentScale.Fit
-                                        )
+                                                .fillMaxSize()
+                                                .background(Color.Black)
+                                                .clickable { expanded = false },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            AsyncImage(
+                                                model = Uri.parse(block.uri),
+                                                contentDescription = "Image (full)",
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                contentScale = ContentScale.Fit
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -654,6 +856,7 @@ fun ViewNoteScreen(
 
             var showMoreMenu by remember { mutableStateOf(false) }
             var showDeleteDialog by remember { mutableStateOf(false) }
+            var showInfoDialog by remember { mutableStateOf(false) }
 
             NoteBottomBar(
                 onImageClick = { if (!isLocked) imagePickerLauncher.launch("image/*") },
@@ -751,6 +954,6 @@ fun insertMediaAtCursor(
         val insertPos = (focusedIndex + 1).coerceAtMost(newBlocks.size)
         newBlocks.add(insertPos, media)
         newFields.add(insertPos, TextFieldValue(""))
-        return InsertResult(newBlocks, newFields, insertPos, 0)
+        return InsertResult(newBlocks,  newFields, insertPos, 0)
     }
 }

@@ -5,25 +5,23 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import com.example.wifty.R
 
 /**
- * Bottom toolbar composable: contains icon actions (image, checklist, file, more).
- * It only emits UI events; the parent composes actual launchers & logic.
+ * Bottom toolbar composable
  */
 @Composable
 fun NoteBottomBar(
@@ -45,28 +43,48 @@ fun NoteBottomBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+
+            // Image attachment icon (PNG)
             IconButton(onClick = onImageClick) {
-                Icon(Icons.Outlined.Info, contentDescription = null, tint = Color.White)
+                Icon(
+                    painter = painterResource(R.drawable.imageicon),
+                    contentDescription = "Attach Image",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
             IconButton(onClick = onInsertChecklistClick) {
-                Icon(Icons.Default.List, contentDescription = null, tint = Color.White)
+                Icon(
+                    imageVector = Icons.Default.List,
+                    contentDescription = "Checklist",
+                    tint = Color.White
+                )
             }
 
+            // File attachment icon (PNG)
             IconButton(onClick = onFileClick) {
-                Icon(Icons.Default.AccountBox, contentDescription = null, tint = Color.White)
+                Icon(
+                    painter = painterResource(R.drawable.fileicon),
+                    contentDescription = "Attach File",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
             IconButton(onClick = onMoreClick) {
-                Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color.White)
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More",
+                    tint = Color.White
+                )
             }
         }
     }
 }
 
 /**
- * Floating More menu UI - simple column with clickable rows.
- * It delegates action handling back to the parent via lambdas.
+ * Floating More menu
  */
 @Composable
 fun FloatingMoreMenu(
@@ -78,24 +96,42 @@ fun FloatingMoreMenu(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        modifier = modifier
-            .wrapContentSize()
-            .background(Color.Transparent)
+        modifier = modifier.wrapContentSize()
     ) {
         Column(
             modifier = Modifier
                 .padding(vertical = 8.dp)
                 .width(180.dp)
         ) {
-            MenuItem(icon = Icons.Default.Delete, text = "Delete", onClick = onDeleteClick)
-            MenuItem(icon = Icons.Default.Info, text = "Copy", onClick = onCopyClick)
-            MenuItem(icon = Icons.Default.Share, text = "Collaborators", onClick = onCollaboratorClick)
+
+            MenuItem(
+                icon = rememberVectorPainter(Icons.Default.Delete),
+                text = "Delete",
+                onClick = onDeleteClick
+            )
+
+            // Copy icon (PNG)
+            MenuItem(
+                icon = painterResource(R.drawable.copyicon),
+                text = "Copy",
+                onClick = onCopyClick
+            )
+
+            MenuItem(
+                icon = rememberVectorPainter(Icons.Default.Share),
+                text = "Collaborators",
+                onClick = onCollaboratorClick
+            )
         }
     }
 }
 
 @Composable
-private fun MenuItem(icon: ImageVector, text: String, onClick: () -> Unit) {
+private fun MenuItem(
+    icon: Painter,
+    text: String,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -103,15 +139,24 @@ private fun MenuItem(icon: ImageVector, text: String, onClick: () -> Unit) {
             .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = text, tint = Color.Black)
+        Icon(
+            painter = icon,
+            contentDescription = text,
+            tint = Color.Black,
+            modifier = Modifier.size(20.dp)
+        )
         Spacer(Modifier.width(12.dp))
-        Text(text, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.Black)
+        Text(
+            text = text,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.Black
+        )
     }
 }
 
-
 /**
- * Delete confirmation dialog; self-contained and simple.
+ * Delete confirmation dialog
  */
 @Composable
 fun DeleteConfirmationDialog(
@@ -125,14 +170,20 @@ fun DeleteConfirmationDialog(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.width(260.dp).padding(22.dp)
+                modifier = Modifier
+                    .width(260.dp)
+                    .padding(22.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
                     IconButton(onClick = onCancel) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color(0xFF5A3EAA))
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color(0xFF5A3EAA)
+                        )
                     }
                 }
 
@@ -160,7 +211,6 @@ fun DeleteConfirmationDialog(
                 ) {
                     OutlinedButton(
                         onClick = onCancel,
-                        border = ButtonDefaults.outlinedButtonBorder,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
@@ -171,7 +221,9 @@ fun DeleteConfirmationDialog(
 
                     Button(
                         onClick = onConfirm,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7A42C8)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF7A42C8)
+                        ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
