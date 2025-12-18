@@ -57,16 +57,17 @@ fun TopNavBar(
             }
 
             // Folders icon
-            onOpenFolders?.let {
+            onOpenFolders?.let { openFolders ->
                 Icon(
-                    imageVector = Icons.Default.AccountBox,
+                    painter = painterResource(R.drawable.foldericon),
                     contentDescription = "Folders",
                     modifier = Modifier
                         .size(26.dp)
-                        .clickable { it() }
+                        .clickable { openFolders() }
                 )
                 Spacer(modifier = Modifier.width(18.dp))
             }
+
 
             // Shared Notes icon
             onOpenSharedNotes?.let {
