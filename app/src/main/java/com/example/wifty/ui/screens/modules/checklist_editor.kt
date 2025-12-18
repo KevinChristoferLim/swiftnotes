@@ -132,8 +132,28 @@ fun deleteChecklistOnBackspacePure(
     }
 
     // Remove the checklist block
-    val newBlocks = blocks.toMutableList()
-    newBlocks.removeAt(idx)
+    val newBlocksMutable = blocks.toMutableList()
+    newBlocksMutable.removeAt(idx)
+
+    // After removing, check if we can merge text blocks around the deletion point.
+    // The block before is at idx-1, the one after is now at idx.
+    val focusIndex = if (idx > 0) idx - 1 else 0
+    var cursorPosition = -1 // sentinel for 'end of text'
+
+    if (idx > 0 && idx < newBlocksMutable.size) {
+        val prev = newBlocksMutable[idx - 1]
+        val next = newBlocksMutable[idx]
+        if (prev is Block.Text && next is Block.Text) {
+            // Store pre-merge cursor position
+            cursorPosition = prev.text.length
+
+            // Merge blocks
+            newBlocksMutable[idx - 1] = Block.Text(prev.text + next.text)
+            newBlocksMutable.removeAt(idx)
+        }
+    }
+
+    val newBlocks = newBlocksMutable.toList()
 
     // If everything is gone → insert an empty text block
     if (newBlocks.isEmpty()) {
@@ -142,25 +162,25 @@ fun deleteChecklistOnBackspacePure(
         return EditResult(single, fvs, 0, 0)
     }
 
-    // Decide which block to focus after deletion:
-    val targetIndex =
-        if (idx - 1 >= 0) idx - 1      // focus previous block
-        else 0                         // otherwise first block
-
+    // targetIndex should be correct even after merge
+    val targetIndex = focusIndex.coerceIn(0, newBlocks.lastIndex)
     val fvs = syncFieldValuesFromBlocksPure(newBlocks)
 
     // Compute cursor offset in the target block
     val target = newBlocks[targetIndex]
-    val cursorPos = when (target) {
-        is Block.Text -> target.text.length
-        is Block.Checklist -> target.text.length
-
-        is Block.ImageBlock -> 0   // image has no cursor
-        is Block.FileBlock -> 0    // file has no cursor
+    val cursorPos = if (cursorPosition != -1) {
+        cursorPosition
+    } else {
+        when (target) {
+            is Block.Text -> target.text.length
+            is Block.Checklist -> target.text.length
+            is Block.ImageBlock -> 0
+            is Block.FileBlock -> 0
+        }
     }
 
     return EditResult(
-        blocks = newBlocks.toList(),   // ensure immutable
+        blocks = newBlocks,
         fieldValues = fvs,
         focusedIndex = targetIndex,
         focusedCursorOffset = cursorPos

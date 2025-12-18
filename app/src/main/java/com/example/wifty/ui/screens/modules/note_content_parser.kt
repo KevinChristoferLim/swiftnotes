@@ -9,7 +9,7 @@ import java.util.regex.Pattern
 // [[CHECKLIST:BASE64_TEXT:0_or_1]]
 // [[IMAGE:BASE64_URI]]
 // [[FILE:BASE64_URI:BASE64_FILENAME:SIZE_BYTES]]
-private val CHECKLIST_REGEX = Pattern.compile("\\[\\[CHECKLIST:([A-Za-z0-9+/=]+):(0|1)]]")
+private val CHECKLIST_REGEX = Pattern.compile("\\[\\[CHECKLIST:([A-Za-z0-9+/=]*):?(0|1)]]")
 private val IMAGE_REGEX = Pattern.compile("\\[\\[IMAGE:([A-Za-z0-9+/=]+)]]")
 private val FILE_REGEX = Pattern.compile("\\[\\[FILE:([A-Za-z0-9+/=]+):([A-Za-z0-9+/=]+):([0-9]+)]]")
 
