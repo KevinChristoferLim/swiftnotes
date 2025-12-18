@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.wifty.R
 import com.example.wifty.ui.screens.login.AuthViewModel
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +49,13 @@ fun ProfileScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showNotificationSheet by remember { mutableStateOf(false) }
     var showPasswordWarningDialog by remember { mutableStateOf(false) }
+
+    // Listen for logout/deletion state to trigger navigation
+    LaunchedEffect(uiState.isLoggedIn) {
+        if (!uiState.isLoggedIn) {
+            onLogout() // Both deletion and logout lead to the login screen
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -117,6 +125,11 @@ fun ProfileScreen(
             ProfileMenuItem(Icons.Outlined.ExitToApp, "Logout", isDestructive = true) {
                 showLogoutDialog = true
             }
+            
+            uiState.error?.let {
+                Spacer(Modifier.height(10.dp))
+                Text(it, color = Color.Red, fontSize = 12.sp, textAlign = TextAlign.Center)
+            }
         }
     }
 
@@ -127,7 +140,6 @@ fun ProfileScreen(
             onConfirm = {
                 showLogoutDialog = false
                 authViewModel.logout()
-                onLogout()
             },
             onDismiss = { showLogoutDialog = false }
         )
@@ -140,7 +152,6 @@ fun ProfileScreen(
             onConfirm = {
                 showDeleteDialog = false
                 authViewModel.deleteAccount()
-                onDeleteAccount()
             },
             onDismiss = { showDeleteDialog = false }
         )

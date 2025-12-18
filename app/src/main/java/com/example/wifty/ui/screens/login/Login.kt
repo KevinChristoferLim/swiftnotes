@@ -34,9 +34,8 @@ class AuthViewModelFactory(private val apiService: ApiService, private val appli
 
 @Composable
 fun AuthScreen(
-    authViewModel: AuthViewModel, // Parameter is now accepted
-    onLoginSuccess: () -> Unit,
-    onNavigateToForgotPassword: () -> Unit
+    authViewModel: AuthViewModel,
+    onLoginSuccess: () -> Unit
 ) {
     var isLogin by remember { mutableStateOf(true) }
 
@@ -63,7 +62,7 @@ fun AuthScreen(
         Spacer(modifier = Modifier.height(40.dp))
 
         if (isLogin) {
-            LoginUI(authViewModel, onLoginSuccess, onNavigateToForgotPassword)
+            LoginUI(authViewModel, onLoginSuccess)
         } else {
             SignUpUI(authViewModel, onLoginSuccess)
         }
@@ -87,8 +86,7 @@ fun ToggleTab(text: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 fun LoginUI(
     authViewModel: AuthViewModel,
-    onLoginSuccess: () -> Unit,
-    onNavigateToForgotPassword: () -> Unit
+    onLoginSuccess: () -> Unit
 ) {
     val uiState by authViewModel.uiState.collectAsState()
     var email by remember { mutableStateOf("") }
@@ -107,14 +105,7 @@ fun LoginUI(
         LabeledInput(label = "Email Address", value = email, onValueChange = { email = it })
         LabeledInput(label = "Password", value = password, onValueChange = { password = it }, isPassword = true)
 
-        Text(
-            text = "Forgot Password?",
-            modifier = Modifier
-                .padding(vertical = 8.dp)
-                .clickable { onNavigateToForgotPassword() },
-            color = Color(0xFF6B4EFF),
-            fontSize = 13.sp
-        )
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (uiState.isLoading) {
             CircularProgressIndicator()

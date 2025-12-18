@@ -22,24 +22,25 @@ data class ReminderData(
 
 /**
  * Formats a reminder into a human-readable countdown or status string.
+ * Now includes seconds for better precision and allows passing current time for live updates.
  */
-fun formatReminder(reminder: ReminderData?): String? {
+fun formatReminder(reminder: ReminderData?, now: Long = System.currentTimeMillis()): String? {
     if (reminder == null) return null
     val targetTime = reminder.timeMillis ?: return null
-    val now = System.currentTimeMillis()
     val diff = targetTime - now
 
     if (diff < 0) return "Overdue"
 
-    val seconds = diff / 1000
-    val minutes = seconds / 60
-    val hours = minutes / 60
-    val days = hours / 24
+    val totalSeconds = diff / 1000
+    val days = totalSeconds / (24 * 3600)
+    val hours = (totalSeconds % (24 * 3600)) / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
 
     return when {
-        days > 0 -> "In $days d"
-        hours > 0 -> "In $hours h"
-        minutes > 0 -> "In $minutes m"
-        else -> "Just now"
+        days > 0 -> "In ${days}d ${hours}h"
+        hours > 0 -> "In ${hours}h ${minutes}m"
+        minutes > 0 -> "In ${minutes}m ${seconds}s"
+        else -> "In ${seconds}s"
     }
 }
